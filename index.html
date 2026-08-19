@@ -1,4 +1,4 @@
-<title>あさのかいタップボード</title>
+<title>音声タップボード</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap">
 <style>
   :root{
@@ -190,14 +190,14 @@
   }
   .backdrop[hidden]{display:none;}
   .panel{
-    width:min(420px,100%);
+    width:min(440px,100%);
     height:100%;
     background:var(--paper);
     border-left:1px solid var(--line);
     padding:1.2rem;
     display:flex;
     flex-direction:column;
-    gap:.9rem;
+    gap:1.1rem;
     overflow-y:auto;
   }
   .panel-head{
@@ -234,7 +234,89 @@
     line-height:1.5;
   }
 
-  .edit-list{
+  .panel-section{
+    display:flex;
+    flex-direction:column;
+    gap:.55rem;
+    padding:.9rem;
+    background:var(--paper-2);
+    border-radius:18px;
+  }
+  .panel-section-title{
+    margin:0;
+    font-size:.78rem;
+    font-weight:800;
+    letter-spacing:.05em;
+    color:var(--ink-soft);
+    text-transform:uppercase;
+  }
+  .field-label{
+    font-size:.82rem;
+    font-weight:700;
+    color:var(--ink-soft);
+    margin-top:.2rem;
+  }
+  .voice-select{
+    font-family:inherit;
+    font-size:.9rem;
+    font-weight:600;
+    color:var(--ink);
+    background:var(--paper);
+    border:2px solid var(--line);
+    border-radius:12px;
+    padding:.5rem .6rem;
+    width:100%;
+  }
+  input[type="range"]{
+    width:100%;
+    accent-color:var(--accent);
+  }
+
+  .board-tabs{
+    display:flex;
+    flex-wrap:wrap;
+    gap:.45rem;
+  }
+  .tab{
+    font-family:inherit;
+    font-weight:700;
+    font-size:.85rem;
+    border-radius:999px;
+    border:2px solid var(--line);
+    background:var(--paper);
+    color:var(--ink);
+    padding:.4rem .85rem;
+    cursor:pointer;
+  }
+  .tab.active{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);}
+
+  .board{display:none;}
+  .board[data-active="true"]{
+    display:flex;
+    flex-direction:column;
+    gap:.7rem;
+  }
+  .board-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:.6rem;
+  }
+  .board-name{
+    margin:0;
+    font-size:1.05rem;
+    font-weight:800;
+    outline:none;
+    border:1.5px dashed var(--line);
+    border-radius:10px;
+    padding:.3rem .5rem;
+    flex:1;
+    min-width:0;
+  }
+  .board-del{font-size:.8rem;flex:none;color:var(--danger);border-color:var(--danger);}
+  .board.confirm-delete .board-del{background:var(--danger);color:#fff;}
+
+  .row-list{
     list-style:none;
     margin:0;
     padding:0;
@@ -305,7 +387,7 @@
 
 <div class="app" lang="ja">
   <div class="topbar">
-    <p class="title">あさのかい タップボード</p>
+    <p class="title">音声タップボード</p>
     <button type="button" id="gearBtn" class="gear" aria-haspopup="dialog" aria-expanded="false" aria-label="せってい">⚙</button>
   </div>
 
@@ -402,146 +484,173 @@
         <h2>せってい</h2>
         <button type="button" id="closePanel" class="ui-btn" aria-label="とじる">とじる</button>
       </div>
-      <div class="panel-row">
-        <button type="button" id="audioToggle" class="ui-btn" aria-pressed="true">🔊 <span>おんせい ON</span></button>
-        <button type="button" id="restartBtn" class="ui-btn">🔁 さいしょから</button>
-      </div>
       <p id="syncNotice" hidden>この画面では変更を保存できません（見るだけの画面です）。</p>
-      <p class="panel-hint">名前・読みあげることば・色・絵・じゅんばんを、下のリストで編集できます。</p>
 
-      <ul id="program" class="edit-list" artifact-sync>
-        <li class="row" data-color="sun">
-          <svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-bell"></use></svg>
-          <div class="row-fields">
-            <span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">はじめの言葉</span>
-            <div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）">せんせい、おはようございます。これから朝の会をはじめます。</div>
+      <div class="panel-section">
+        <p class="panel-section-title">ボード</p>
+        <div class="board-tabs" id="boardTabs"></div>
+        <div class="panel-row">
+          <button type="button" id="addBoardBtn" class="ui-btn">＋ 新しいボード</button>
+          <button type="button" id="restartBtn" class="ui-btn">🔁 さいしょから</button>
+        </div>
+        <p class="panel-hint">朝の会・帰りの会など、場面ごとにボードを分けて保存できます。カードの名前・読みあげることば・色・絵・じゅんばんは、下のリストで編集できます。</p>
+      </div>
+
+      <div class="panel-section">
+        <p class="panel-section-title">おんせい</p>
+        <div class="panel-row">
+          <button type="button" id="audioToggle" class="ui-btn" aria-pressed="true">🔊 <span>おんせい ON</span></button>
+        </div>
+        <label class="field-label" for="voiceSelect">こえの しゅるい</label>
+        <select id="voiceSelect" class="voice-select"></select>
+        <label class="field-label" for="rateRange">はやさ：<span id="rateValue">0.9</span>倍</label>
+        <input type="range" id="rateRange" min="0.6" max="1.4" step="0.1" value="0.9">
+        <div class="panel-row">
+          <button type="button" id="testVoiceBtn" class="ui-btn">▶ ためしにきく</button>
+        </div>
+      </div>
+
+      <div id="boardsData">
+        <section class="board" data-active="true">
+          <div class="board-head">
+            <h3 class="board-name" contenteditable="true" spellcheck="false" data-placeholder="（ボードのなまえ）">朝の会</h3>
+            <button type="button" class="ui-btn board-del" aria-label="このボードを消す">✕ ボードをけす</button>
           </div>
-          <div class="row-ctl">
-            <button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>
-            <button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>
-            <button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>
-            <button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>
-          </div>
-        </li>
-        <li class="row" data-color="sky">
-          <svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-wave"></use></svg>
-          <div class="row-fields">
-            <span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">朝のあいさつ</span>
-            <div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）">みなさん、おはようございます。</div>
-          </div>
-          <div class="row-ctl">
-            <button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>
-            <button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>
-            <button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>
-            <button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>
-          </div>
-        </li>
-        <li class="row" data-color="berry">
-          <svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-heart"></use></svg>
-          <div class="row-fields">
-            <span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">健康観察</span>
-            <div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）">今日も元気に過ごしましょう。</div>
-          </div>
-          <div class="row-ctl">
-            <button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>
-            <button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>
-            <button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>
-            <button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>
-          </div>
-        </li>
-        <li class="row" data-color="leaf">
-          <svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-calendar"></use></svg>
-          <div class="row-fields">
-            <span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">今日の日付</span>
-            <div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）">今日は8月19日、水曜日です。</div>
-          </div>
-          <div class="row-ctl">
-            <button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>
-            <button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>
-            <button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>
-            <button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>
-          </div>
-        </li>
-        <li class="row" data-color="sand">
-          <svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-sun"></use></svg>
-          <div class="row-fields">
-            <span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">今日の天気</span>
-            <div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）">今日の天気は、晴れです。</div>
-          </div>
-          <div class="row-ctl">
-            <button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>
-            <button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>
-            <button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>
-            <button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>
-          </div>
-        </li>
-        <li class="row" data-color="violet">
-          <svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-clipboard"></use></svg>
-          <div class="row-fields">
-            <span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">今日の予定</span>
-            <div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）">今日の予定を発表します。</div>
-          </div>
-          <div class="row-ctl">
-            <button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>
-            <button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>
-            <button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>
-            <button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>
-          </div>
-        </li>
-        <li class="row" data-color="sun">
-          <svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-star"></use></svg>
-          <div class="row-fields">
-            <span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">がんばること</span>
-            <div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）">今日がんばることは、大きな声であいさつをすることです。</div>
-          </div>
-          <div class="row-ctl">
-            <button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>
-            <button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>
-            <button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>
-            <button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>
-          </div>
-        </li>
-        <li class="row" data-color="sky">
-          <svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-music"></use></svg>
-          <div class="row-fields">
-            <span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">朝の歌</span>
-            <div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）">朝の歌をうたいましょう。</div>
-          </div>
-          <div class="row-ctl">
-            <button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>
-            <button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>
-            <button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>
-            <button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>
-          </div>
-        </li>
-        <li class="row" data-color="berry">
-          <svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-speech"></use></svg>
-          <div class="row-fields">
-            <span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">先生のお話</span>
-            <div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）">先生のお話をききましょう。</div>
-          </div>
-          <div class="row-ctl">
-            <button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>
-            <button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>
-            <button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>
-            <button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>
-          </div>
-        </li>
-        <li class="row" data-color="leaf">
-          <svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-flag"></use></svg>
-          <div class="row-fields">
-            <span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">おわりの言葉</span>
-            <div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）">これで朝の会をおわります。</div>
-          </div>
-          <div class="row-ctl">
-            <button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>
-            <button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>
-            <button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>
-            <button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>
-          </div>
-        </li>
-      </ul>
-      <button type="button" id="addBtn" class="ui-btn add-btn">＋ カードをついかする</button>
+          <ul class="row-list">
+            <li class="row" data-color="sun">
+              <svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-bell"></use></svg>
+              <div class="row-fields">
+                <span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">はじめの言葉</span>
+                <div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）">せんせい、おはようございます。これから朝の会をはじめます。</div>
+              </div>
+              <div class="row-ctl">
+                <button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>
+                <button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>
+                <button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>
+                <button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>
+              </div>
+            </li>
+            <li class="row" data-color="sky">
+              <svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-wave"></use></svg>
+              <div class="row-fields">
+                <span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">朝のあいさつ</span>
+                <div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）">みなさん、おはようございます。</div>
+              </div>
+              <div class="row-ctl">
+                <button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>
+                <button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>
+                <button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>
+                <button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>
+              </div>
+            </li>
+            <li class="row" data-color="berry">
+              <svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-heart"></use></svg>
+              <div class="row-fields">
+                <span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">健康観察</span>
+                <div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）">今日も元気に過ごしましょう。</div>
+              </div>
+              <div class="row-ctl">
+                <button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>
+                <button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>
+                <button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>
+                <button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>
+              </div>
+            </li>
+            <li class="row" data-color="leaf">
+              <svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-calendar"></use></svg>
+              <div class="row-fields">
+                <span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">今日の日付</span>
+                <div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）">今日は8月19日、水曜日です。</div>
+              </div>
+              <div class="row-ctl">
+                <button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>
+                <button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>
+                <button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>
+                <button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>
+              </div>
+            </li>
+            <li class="row" data-color="sand">
+              <svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-sun"></use></svg>
+              <div class="row-fields">
+                <span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">今日の天気</span>
+                <div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）">今日の天気は、晴れです。</div>
+              </div>
+              <div class="row-ctl">
+                <button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>
+                <button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>
+                <button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>
+                <button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>
+              </div>
+            </li>
+            <li class="row" data-color="violet">
+              <svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-clipboard"></use></svg>
+              <div class="row-fields">
+                <span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">今日の予定</span>
+                <div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）">今日の予定を発表します。</div>
+              </div>
+              <div class="row-ctl">
+                <button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>
+                <button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>
+                <button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>
+                <button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>
+              </div>
+            </li>
+            <li class="row" data-color="sun">
+              <svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-star"></use></svg>
+              <div class="row-fields">
+                <span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">がんばること</span>
+                <div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）">今日がんばることは、大きな声であいさつをすることです。</div>
+              </div>
+              <div class="row-ctl">
+                <button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>
+                <button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>
+                <button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>
+                <button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>
+              </div>
+            </li>
+            <li class="row" data-color="sky">
+              <svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-music"></use></svg>
+              <div class="row-fields">
+                <span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">朝の歌</span>
+                <div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）">朝の歌をうたいましょう。</div>
+              </div>
+              <div class="row-ctl">
+                <button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>
+                <button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>
+                <button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>
+                <button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>
+              </div>
+            </li>
+            <li class="row" data-color="berry">
+              <svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-speech"></use></svg>
+              <div class="row-fields">
+                <span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">先生のお話</span>
+                <div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）">先生のお話をききましょう。</div>
+              </div>
+              <div class="row-ctl">
+                <button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>
+                <button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>
+                <button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>
+                <button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>
+              </div>
+            </li>
+            <li class="row" data-color="leaf">
+              <svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-flag"></use></svg>
+              <div class="row-fields">
+                <span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">おわりの言葉</span>
+                <div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）">これで朝の会をおわります。</div>
+              </div>
+              <div class="row-ctl">
+                <button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>
+                <button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>
+                <button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>
+                <button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>
+              </div>
+            </li>
+          </ul>
+          <button type="button" class="ui-btn add-btn board-add-row">＋ カードをついかする</button>
+        </section>
+      </div>
     </div>
   </div>
 </div>
@@ -552,7 +661,9 @@
   var ICONS = ["bell","wave","heart","calendar","sun","clipboard","star","music","speech","flag","book","smile"];
   var COLORS = ["sun","sky","leaf","berry","violet","sand"];
 
-  var program = document.getElementById("program");
+  var boardsData = document.getElementById("boardsData");
+  var boardTabs = document.getElementById("boardTabs");
+  var addBoardBtn = document.getElementById("addBoardBtn");
   var stage = document.getElementById("stage");
   var stageNum = document.getElementById("stageNum");
   var stageIconUse = document.getElementById("stageIconUse");
@@ -563,13 +674,46 @@
   var backdrop = document.getElementById("backdrop");
   var audioToggle = document.getElementById("audioToggle");
   var restartBtn = document.getElementById("restartBtn");
-  var addBtn = document.getElementById("addBtn");
   var syncNotice = document.getElementById("syncNotice");
+  var voiceSelect = document.getElementById("voiceSelect");
+  var rateRange = document.getElementById("rateRange");
+  var rateValue = document.getElementById("rateValue");
+  var testVoiceBtn = document.getElementById("testVoiceBtn");
 
   var currentIndex = 0;
 
   function qsa(sel, el){ return Array.prototype.slice.call((el||document).querySelectorAll(sel)); }
-  function rows(){ return qsa(".row", program); }
+
+  function activeBoard(){
+    return boardsData.querySelector('.board[data-active="true"]') || boardsData.querySelector(".board");
+  }
+  function rows(){
+    var b = activeBoard();
+    if(!b) return [];
+    return qsa(".row", b.querySelector(".row-list"));
+  }
+
+  // ---------- board tabs ----------
+  function renderBoardTabs(){
+    var boards = qsa(".board", boardsData);
+    var active = activeBoard();
+    boardTabs.innerHTML = "";
+    boards.forEach(function(b){
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "tab" + (b === active ? " active" : "");
+      var nameEl = b.querySelector(".board-name");
+      btn.textContent = (nameEl && nameEl.textContent.trim()) || "ボード";
+      btn.addEventListener("click", function(){
+        qsa(".board", boardsData).forEach(function(x){ x.removeAttribute("data-active"); });
+        b.setAttribute("data-active", "true");
+        currentIndex = 0;
+        renderBoardTabs();
+        render();
+      });
+      boardTabs.appendChild(btn);
+    });
+  }
 
   // ---------- stage (child-facing, single card) ----------
   function render(){
@@ -603,15 +747,68 @@
     stageNum.textContent = (currentIndex + 1) + " / " + items.length;
   }
 
-  function pickVoice(){
-    if(!("speechSynthesis" in window)) return null;
-    var voices = window.speechSynthesis.getVoices();
-    if(!voices.length) return null;
-    var exact = voices.filter(function(v){ return v.lang === "ja-JP"; });
-    if(exact.length) return exact[0];
-    var loose = voices.filter(function(v){ return v.lang && v.lang.indexOf("ja") === 0; });
-    return loose.length ? loose[0] : null;
+  function combinedSpeech(li){
+    var label = li.querySelector(".row-label").textContent.trim();
+    var phraseEl = li.querySelector(".row-phrase");
+    var phrase = phraseEl ? phraseEl.textContent.trim() : "";
+    if(label && phrase && label !== phrase) return label + "。" + phrase;
+    return phrase || label || "";
   }
+
+  // ---------- voices & speed ----------
+  var savedVoiceName = null;
+  var savedRate = 0.9;
+  try{
+    savedVoiceName = localStorage.getItem("onsei-voice");
+    var r = parseFloat(localStorage.getItem("onsei-rate"));
+    if(!isNaN(r)) savedRate = r;
+  }catch(e){}
+  rateRange.value = savedRate;
+  rateValue.textContent = savedRate.toFixed(1);
+
+  function populateVoices(){
+    if(!("speechSynthesis" in window)) return;
+    var all = window.speechSynthesis.getVoices();
+    if(!all.length) return;
+    var ja = all.filter(function(v){ return v.lang && v.lang.indexOf("ja") === 0; });
+    var list = ja.length ? ja : all;
+    var prevValue = voiceSelect.value;
+    voiceSelect.innerHTML = "";
+    list.forEach(function(v){
+      var opt = document.createElement("option");
+      opt.value = v.name;
+      opt.textContent = v.name + "（" + v.lang + "）";
+      voiceSelect.appendChild(opt);
+    });
+    if(savedVoiceName && list.some(function(v){ return v.name === savedVoiceName; })){
+      voiceSelect.value = savedVoiceName;
+    } else if(prevValue && list.some(function(v){ return v.name === prevValue; })){
+      voiceSelect.value = prevValue;
+    }
+  }
+  if("speechSynthesis" in window){
+    populateVoices();
+    window.speechSynthesis.onvoiceschanged = populateVoices;
+  }
+  function currentVoice(){
+    if(!("speechSynthesis" in window)) return null;
+    var all = window.speechSynthesis.getVoices();
+    if(!all.length) return null;
+    var chosen = all.filter(function(v){ return v.name === voiceSelect.value; })[0];
+    if(chosen) return chosen;
+    var ja = all.filter(function(v){ return v.lang && v.lang.indexOf("ja") === 0; });
+    return ja[0] || null;
+  }
+  voiceSelect.addEventListener("change", function(){
+    try{ localStorage.setItem("onsei-voice", voiceSelect.value); }catch(e){}
+  });
+  rateRange.addEventListener("input", function(){
+    rateValue.textContent = parseFloat(rateRange.value).toFixed(1);
+    try{ localStorage.setItem("onsei-rate", rateRange.value); }catch(e){}
+  });
+  testVoiceBtn.addEventListener("click", function(){
+    speakText("こんにちは。これは、おんせいのテストです。");
+  });
 
   function speakText(text){
     if(!text) return;
@@ -621,9 +818,9 @@
       window.speechSynthesis.cancel();
       var u = new SpeechSynthesisUtterance(text);
       u.lang = "ja-JP";
-      u.rate = 0.92;
+      u.rate = parseFloat(rateRange.value) || 0.9;
       u.pitch = 1.05;
-      var v = pickVoice();
+      var v = currentVoice();
       if(v) u.voice = v;
       window.speechSynthesis.speak(u);
     }catch(e){}
@@ -637,7 +834,8 @@
       render();
       return;
     }
-    speakText(stagePhrase.textContent);
+    var li = items[currentIndex];
+    speakText(combinedSpeech(li));
     stage.classList.add("leaving");
     setTimeout(function(){
       currentIndex++;
@@ -694,17 +892,17 @@
     audioToggle.appendChild(span);
   }
   try{
-    if(localStorage.getItem("asakai-audio") === "off") document.body.classList.add("audio-off");
+    if(localStorage.getItem("onsei-audio") === "off") document.body.classList.add("audio-off");
   }catch(e){}
   updateAudioLabel();
   audioToggle.addEventListener("click", function(){
     var off = document.body.classList.toggle("audio-off");
     if(off && "speechSynthesis" in window) window.speechSynthesis.cancel();
-    try{ localStorage.setItem("asakai-audio", off ? "off" : "on"); }catch(e){}
+    try{ localStorage.setItem("onsei-audio", off ? "off" : "on"); }catch(e){}
     updateAudioLabel();
   });
 
-  // ---------- editable list (teacher-facing) ----------
+  // ---------- editable rows (teacher-facing) ----------
   function cycleIcon(li){
     var useEl = li.querySelector(".row-icon use");
     if(!useEl) return;
@@ -723,6 +921,7 @@
       clearTimeout(li._delTimer);
       li.remove();
       if(currentIndex >= rows().length) currentIndex = 0;
+      render();
       return;
     }
     li.classList.add("confirm-delete");
@@ -744,20 +943,19 @@
       if(next) parent.insertBefore(next, li);
     }
   }
-
   function newRowMarkup(){
-    return '' +
+    return "" +
       '<svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-star"></use></svg>' +
       '<div class="row-fields">' +
         '<span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">あたらしいカード</span>' +
         '<div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）"></div>' +
-      '</div>' +
+      "</div>" +
       '<div class="row-ctl">' +
         '<button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>' +
         '<button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>' +
         '<button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>' +
         '<button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>' +
-      '</div>';
+      "</div>";
   }
   function selectAll(el){
     try{
@@ -768,18 +966,74 @@
       sel.addRange(range);
     }catch(e){}
   }
-  addBtn.addEventListener("click", function(){
+  function addRowTo(rowList){
     var li = document.createElement("li");
     li.className = "row";
     li.dataset.color = COLORS[Math.floor(Math.random() * COLORS.length)];
     li.innerHTML = newRowMarkup();
-    program.appendChild(li);
+    rowList.appendChild(li);
     var labelEl = li.querySelector(".row-label");
     if(labelEl){ labelEl.focus(); selectAll(labelEl); }
-  });
+  }
 
-  program.addEventListener("click", function(e){
-    var li = e.target.closest ? e.target.closest("li.row") : null;
+  // ---------- boards ----------
+  function newBoardMarkup(){
+    return "" +
+      '<div class="board-head">' +
+        '<h3 class="board-name" contenteditable="true" spellcheck="false" data-placeholder="（ボードのなまえ）">あたらしいボード</h3>' +
+        '<button type="button" class="ui-btn board-del" aria-label="このボードを消す">✕ ボードをけす</button>' +
+      "</div>" +
+      '<ul class="row-list"></ul>' +
+      '<button type="button" class="ui-btn add-btn board-add-row">＋ カードをついかする</button>';
+  }
+  addBoardBtn.addEventListener("click", function(){
+    var section = document.createElement("section");
+    section.className = "board";
+    section.innerHTML = newBoardMarkup();
+    boardsData.appendChild(section);
+    qsa(".board", boardsData).forEach(function(b){ b.removeAttribute("data-active"); });
+    section.setAttribute("data-active", "true");
+    currentIndex = 0;
+    renderBoardTabs();
+    render();
+    var nameEl = section.querySelector(".board-name");
+    if(nameEl){ nameEl.focus(); selectAll(nameEl); }
+  });
+  function handleDeleteBoard(section){
+    var boards = qsa(".board", boardsData);
+    if(boards.length <= 1) return;
+    if(section.classList.contains("confirm-delete")){
+      var wasActive = section.getAttribute("data-active") === "true";
+      var idx = boards.indexOf(section);
+      section.remove();
+      if(wasActive){
+        var remaining = qsa(".board", boardsData);
+        var next = remaining[Math.max(0, idx - 1)] || remaining[0];
+        if(next) next.setAttribute("data-active", "true");
+      }
+      currentIndex = 0;
+      renderBoardTabs();
+      render();
+      return;
+    }
+    section.classList.add("confirm-delete");
+    var btn = section.querySelector(".board-del");
+    if(btn) btn.textContent = "本当に？";
+    clearTimeout(section._delTimer);
+    section._delTimer = setTimeout(function(){
+      section.classList.remove("confirm-delete");
+      if(btn) btn.textContent = "✕ ボードをけす";
+    }, 3000);
+  }
+
+  // ---------- delegated events over all boards ----------
+  boardsData.addEventListener("click", function(e){
+    var section = e.target.closest ? e.target.closest("section.board") : null;
+    if(!section) return;
+    if(e.target.closest(".board-del")){ handleDeleteBoard(section); return; }
+    if(e.target.closest(".board-add-row")){ addRowTo(section.querySelector(".row-list")); return; }
+
+    var li = e.target.closest("li.row");
     if(!li) return;
     if(e.target.closest(".row-icon")){ cycleIcon(li); return; }
     if(e.target.closest(".ctl-color")){ cycleColor(li); return; }
@@ -787,10 +1041,10 @@
     if(e.target.closest(".ctl-down")){ moveRow(li, "down"); return; }
     if(e.target.closest(".ctl-del")){ handleDelete(li); return; }
   });
-  program.addEventListener("keydown", function(e){
+  boardsData.addEventListener("keydown", function(e){
     var t = e.target;
     if(!t.classList) return;
-    if(t.classList.contains("row-label") || t.classList.contains("row-phrase")){
+    if(t.classList.contains("row-label") || t.classList.contains("row-phrase") || t.classList.contains("board-name")){
       if(e.key === "Enter"){ e.preventDefault(); t.blur(); }
       return;
     }
@@ -800,17 +1054,19 @@
       if(li) cycleIcon(li);
     }
   });
-  program.addEventListener("input", function(e){
+  boardsData.addEventListener("input", function(e){
     var t = e.target;
     if(!t.classList) return;
-    if(t.classList.contains("row-label") || t.classList.contains("row-phrase")){
+    if(t.classList.contains("row-label") || t.classList.contains("row-phrase") || t.classList.contains("board-name")){
       if(t.querySelector("*")){ t.textContent = t.textContent; }
+      if(t.classList.contains("board-name")) renderBoardTabs();
     }
   });
-  program.addEventListener("claude:sync-off", function(){
+  boardsData.addEventListener("claude:sync-off", function(){
     syncNotice.hidden = false;
   });
 
+  renderBoardTabs();
   render();
 })();
 </script>
