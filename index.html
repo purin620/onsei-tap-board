@@ -1,0 +1,816 @@
+<title>あさのかいタップボード</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap">
+<style>
+  :root{
+    --paper:#F2F5F1;
+    --paper-2:#E6ECE5;
+    --ink:#26313A;
+    --ink-soft:#5B6A66;
+    --accent:#2F7B6C;
+    --accent-ink:#FFFFFF;
+    --line:#D6DFD9;
+    --shadow:rgba(38,49,58,.16);
+    --danger:#B8564F;
+    --backdrop:rgba(20,26,24,.45);
+
+    --card-sun-bg:#FFDFA6;   --card-sun-fg:#5A3E10;
+    --card-sky-bg:#BFE1EA;   --card-sky-fg:#1B4653;
+    --card-leaf-bg:#C9E4BD;  --card-leaf-fg:#2E4A22;
+    --card-berry-bg:#F3C6CE; --card-berry-fg:#6A2530;
+    --card-violet-bg:#D9CBEF;--card-violet-fg:#40276B;
+    --card-sand-bg:#EAD9BE;  --card-sand-fg:#5A4423;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#171D1F; --paper-2:#1E2528; --ink:#E8F0EC; --ink-soft:#9FB0AB;
+      --accent:#4FB3A0; --accent-ink:#0E1614; --line:#2B3538;
+      --shadow:rgba(0,0,0,.55); --danger:#E08076; --backdrop:rgba(0,0,0,.6);
+      --card-sun-bg:#D9AE5E;   --card-sun-fg:#2E1E05;
+      --card-sky-bg:#7FB8C7;   --card-sky-fg:#0F2C34;
+      --card-leaf-bg:#93BE81;  --card-leaf-fg:#1C2E15;
+      --card-berry-bg:#D48E99; --card-berry-fg:#3D131A;
+      --card-violet-bg:#AE93D6;--card-violet-fg:#241548;
+      --card-sand-bg:#C7A874;  --card-sand-fg:#332611;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#171D1F; --paper-2:#1E2528; --ink:#E8F0EC; --ink-soft:#9FB0AB;
+    --accent:#4FB3A0; --accent-ink:#0E1614; --line:#2B3538;
+    --shadow:rgba(0,0,0,.55); --danger:#E08076; --backdrop:rgba(0,0,0,.6);
+    --card-sun-bg:#D9AE5E;   --card-sun-fg:#2E1E05;
+    --card-sky-bg:#7FB8C7;   --card-sky-fg:#0F2C34;
+    --card-leaf-bg:#93BE81;  --card-leaf-fg:#1C2E15;
+    --card-berry-bg:#D48E99; --card-berry-fg:#3D131A;
+    --card-violet-bg:#AE93D6;--card-violet-fg:#241548;
+    --card-sand-bg:#C7A874;  --card-sand-fg:#332611;
+  }
+
+  *{box-sizing:border-box;}
+  .app{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"M PLUS Rounded 1c","Hiragino Maru Gothic ProN","Yu Gothic UI",sans-serif;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:1.1rem 1.1rem 2rem;
+    gap:1rem;
+    position:relative;
+  }
+
+  .topbar{
+    width:100%;
+    max-width:640px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:.6rem;
+  }
+  .title{
+    font-weight:800;
+    font-size:clamp(1.05rem,2.6vw,1.3rem);
+    margin:0;
+  }
+  .gear{
+    width:2.6rem;
+    height:2.6rem;
+    border-radius:50%;
+    border:2px solid var(--line);
+    background:var(--paper-2);
+    color:var(--ink);
+    font-size:1.3rem;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    flex:none;
+  }
+  .gear:hover{background:var(--line);}
+  .gear:active{transform:scale(.94);}
+
+  .stage-wrap{
+    flex:1;
+    width:100%;
+    max-width:640px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:1rem;
+    min-height:0;
+  }
+
+  .stage{
+    width:100%;
+    aspect-ratio:1/1;
+    max-height:min(62vh,560px);
+    background:var(--card-bg,var(--paper-2));
+    color:var(--card-fg,var(--ink));
+    border-radius:40px;
+    border:1px solid rgba(0,0,0,.06);
+    box-shadow:0 14px 32px var(--shadow);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:1rem;
+    padding:2rem 1.6rem;
+    text-align:center;
+    cursor:pointer;
+    transition:transform .22s ease, opacity .22s ease, box-shadow .15s ease;
+  }
+  .stage[data-color="sun"]{--card-bg:var(--card-sun-bg);--card-fg:var(--card-sun-fg);}
+  .stage[data-color="sky"]{--card-bg:var(--card-sky-bg);--card-fg:var(--card-sky-fg);}
+  .stage[data-color="leaf"]{--card-bg:var(--card-leaf-bg);--card-fg:var(--card-leaf-fg);}
+  .stage[data-color="berry"]{--card-bg:var(--card-berry-bg);--card-fg:var(--card-berry-fg);}
+  .stage[data-color="violet"]{--card-bg:var(--card-violet-bg);--card-fg:var(--card-violet-fg);}
+  .stage[data-color="sand"]{--card-bg:var(--card-sand-bg);--card-fg:var(--card-sand-fg);}
+
+  .stage:active{transform:scale(.97);}
+  .stage.leaving{transform:scale(.9) rotate(-1.5deg);opacity:.25;}
+  .stage.entering{transform:scale(1.05);opacity:0;}
+  @media (prefers-reduced-motion: reduce){
+    .stage{transition:none;}
+    .stage.leaving,.stage.entering{transform:none;opacity:1;}
+  }
+
+  .stage-num{
+    font-weight:800;
+    font-size:1.05rem;
+    background:var(--paper);
+    color:var(--card-fg,var(--ink));
+    border-radius:999px;
+    padding:.25rem .9rem;
+    font-variant-numeric:tabular-nums;
+  }
+  .stage-icon{
+    width:clamp(72px,18vw,120px);
+    height:clamp(72px,18vw,120px);
+    color:currentColor;
+  }
+  .stage-label{
+    font-weight:700;
+    font-size:clamp(.95rem,2.2vw,1.1rem);
+    opacity:.85;
+    letter-spacing:.02em;
+  }
+  .stage-phrase{
+    font-weight:800;
+    font-size:clamp(1.3rem,4.2vw,2rem);
+    line-height:1.4;
+    text-wrap:balance;
+    margin:0;
+  }
+
+  .hint{
+    color:var(--ink-soft);
+    font-size:.92rem;
+    font-weight:500;
+    margin:0;
+    text-align:center;
+  }
+
+  #syncNotice{
+    margin:0;
+    font-size:.85rem;
+    color:var(--danger);
+    font-weight:700;
+    text-align:center;
+  }
+
+  /* settings panel */
+  .backdrop{
+    position:fixed;
+    inset:0;
+    background:var(--backdrop);
+    display:flex;
+    justify-content:flex-end;
+    z-index:20;
+  }
+  .backdrop[hidden]{display:none;}
+  .panel{
+    width:min(420px,100%);
+    height:100%;
+    background:var(--paper);
+    border-left:1px solid var(--line);
+    padding:1.2rem;
+    display:flex;
+    flex-direction:column;
+    gap:.9rem;
+    overflow-y:auto;
+  }
+  .panel-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .panel-head h2{
+    margin:0;
+    font-size:1.2rem;
+    font-weight:800;
+  }
+  button.ui-btn{
+    font-family:inherit;
+    font-weight:700;
+    font-size:.92rem;
+    border-radius:999px;
+    border:2px solid var(--line);
+    background:var(--paper-2);
+    color:var(--ink);
+    padding:.55rem 1rem;
+    cursor:pointer;
+    display:inline-flex;
+    align-items:center;
+    gap:.4rem;
+  }
+  button.ui-btn:active{transform:scale(.96);}
+  button.ui-btn[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);}
+  .panel-row{display:flex;flex-wrap:wrap;gap:.6rem;}
+  .panel-hint{
+    margin:0;
+    font-size:.85rem;
+    color:var(--ink-soft);
+    line-height:1.5;
+  }
+
+  .edit-list{
+    list-style:none;
+    margin:0;
+    padding:0;
+    display:flex;
+    flex-direction:column;
+    gap:.7rem;
+  }
+  .row{
+    display:flex;
+    gap:.7rem;
+    align-items:flex-start;
+    background:var(--card-bg,var(--paper-2));
+    color:var(--card-fg,var(--ink));
+    border-radius:20px;
+    padding:.7rem .8rem;
+  }
+  .row[data-color="sun"]{--card-bg:var(--card-sun-bg);--card-fg:var(--card-sun-fg);}
+  .row[data-color="sky"]{--card-bg:var(--card-sky-bg);--card-fg:var(--card-sky-fg);}
+  .row[data-color="leaf"]{--card-bg:var(--card-leaf-bg);--card-fg:var(--card-leaf-fg);}
+  .row[data-color="berry"]{--card-bg:var(--card-berry-bg);--card-fg:var(--card-berry-fg);}
+  .row[data-color="violet"]{--card-bg:var(--card-violet-bg);--card-fg:var(--card-violet-fg);}
+  .row[data-color="sand"]{--card-bg:var(--card-sand-bg);--card-fg:var(--card-sand-fg);}
+
+  .row-icon{
+    width:2.4rem;
+    height:2.4rem;
+    color:currentColor;
+    flex:none;
+    cursor:pointer;
+    border-radius:50%;
+    outline:2px dashed currentColor;
+    outline-offset:3px;
+    padding:.3rem;
+  }
+  .row-fields{flex:1;min-width:0;display:flex;flex-direction:column;gap:.4rem;}
+  .row-label,.row-phrase{
+    outline:none;
+    border:1.5px dashed currentColor;
+    border-radius:10px;
+    background:color-mix(in srgb, var(--paper) 55%, transparent);
+    padding:.3rem .5rem;
+  }
+  .row-label{font-weight:800;font-size:1rem;}
+  .row-phrase{font-weight:500;font-size:.88rem;line-height:1.4;min-height:2.2em;}
+  [contenteditable]:empty:before{content:attr(data-placeholder);opacity:.6;}
+
+  .row-ctl{display:flex;flex-direction:column;gap:.3rem;flex:none;}
+  .ctl{
+    font-family:inherit;
+    font-weight:700;
+    font-size:.78rem;
+    border-radius:999px;
+    border:1.5px solid currentColor;
+    background:color-mix(in srgb, var(--paper) 70%, transparent);
+    color:inherit;
+    padding:.25rem .55rem;
+    cursor:pointer;
+    min-width:2.2rem;
+  }
+  .ctl:active{transform:scale(.94);}
+  .ctl-del{color:var(--danger);border-color:var(--danger);}
+  .row.confirm-delete .ctl-del{background:var(--danger);color:#fff;}
+
+  .add-btn{align-self:flex-start;}
+
+  :focus-visible{outline:3px solid var(--accent);outline-offset:2px;}
+</style>
+
+<div class="app" lang="ja">
+  <div class="topbar">
+    <p class="title">あさのかい タップボード</p>
+    <button type="button" id="gearBtn" class="gear" aria-haspopup="dialog" aria-expanded="false" aria-label="せってい">⚙</button>
+  </div>
+
+  <svg style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">
+    <defs>
+      <symbol id="icon-bell" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="24" cy="9" r="2" fill="currentColor" stroke="none"/>
+        <path d="M14 30c0-8 4-14 10-14s10 6 10 14"/>
+        <line x1="10" y1="30" x2="38" y2="30"/>
+        <path d="M20 34a4 4 0 0 0 8 0"/>
+      </symbol>
+      <symbol id="icon-wave" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="14" y="20" width="18" height="19" rx="7"/>
+        <line x1="18" y1="20" x2="18" y2="9"/>
+        <line x1="23" y1="20" x2="23" y2="7"/>
+        <line x1="28" y1="20" x2="28" y2="9"/>
+        <path d="M32 25l6-5"/>
+      </symbol>
+      <symbol id="icon-heart" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M24 39S8 28 8 17a8 8 0 0 1 16-3 8 8 0 0 1 16 3c0 11-16 22-16 22z"/>
+      </symbol>
+      <symbol id="icon-calendar" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="8" y="10" width="32" height="28" rx="5"/>
+        <line x1="8" y1="18" x2="40" y2="18"/>
+        <line x1="16" y1="6" x2="16" y2="14"/>
+        <line x1="32" y1="6" x2="32" y2="14"/>
+        <circle cx="18" cy="27" r="1.6" fill="currentColor" stroke="none"/>
+        <circle cx="24" cy="27" r="1.6" fill="currentColor" stroke="none"/>
+        <circle cx="30" cy="27" r="1.6" fill="currentColor" stroke="none"/>
+      </symbol>
+      <symbol id="icon-sun" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="24" cy="22" r="8"/>
+        <line x1="24" y1="5" x2="24" y2="9"/>
+        <line x1="24" y1="35" x2="24" y2="39"/>
+        <line x1="7" y1="22" x2="11" y2="22"/>
+        <line x1="37" y1="22" x2="41" y2="22"/>
+        <line x1="12" y1="10" x2="15" y2="13"/>
+        <line x1="33" y1="31" x2="36" y2="34"/>
+        <line x1="12" y1="34" x2="15" y2="31"/>
+        <line x1="33" y1="13" x2="36" y2="10"/>
+      </symbol>
+      <symbol id="icon-clipboard" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="12" y="8" width="24" height="34" rx="4"/>
+        <rect x="18" y="5" width="12" height="6" rx="2"/>
+        <line x1="17" y1="21" x2="31" y2="21"/>
+        <line x1="17" y1="28" x2="31" y2="28"/>
+        <line x1="17" y1="35" x2="26" y2="35"/>
+      </symbol>
+      <symbol id="icon-star" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round">
+        <path d="M24 6l5.5 11.2 12.3 1.8-8.9 8.7 2.1 12.3L24 34l-11 6 2.1-12.3-8.9-8.7 12.3-1.8z"/>
+      </symbol>
+      <symbol id="icon-music" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="14" cy="36" r="5"/>
+        <circle cx="32" cy="32" r="5"/>
+        <line x1="19" y1="36" x2="19" y2="10"/>
+        <line x1="37" y1="32" x2="37" y2="8"/>
+        <path d="M19 10l18-4v8l-18 4"/>
+      </symbol>
+      <symbol id="icon-speech" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8 12h32v18H21l-7 7v-7H8z"/>
+        <line x1="14" y1="19" x2="34" y2="19"/>
+        <line x1="14" y1="24" x2="28" y2="24"/>
+      </symbol>
+      <symbol id="icon-flag" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="6" x2="12" y2="42"/>
+        <path d="M12 8h24l-6 8 6 8H12z"/>
+      </symbol>
+      <symbol id="icon-book" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M24 13s-6-4-16-4v27c10 0 16 4 16 4s6-4 16-4V9c-10 0-16 4-16 4z"/>
+        <line x1="24" y1="13" x2="24" y2="40"/>
+      </symbol>
+      <symbol id="icon-smile" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="24" cy="24" r="16"/>
+        <circle cx="18" cy="20" r="1.8" fill="currentColor" stroke="none"/>
+        <circle cx="30" cy="20" r="1.8" fill="currentColor" stroke="none"/>
+        <path d="M16 28c2 4 6 6 8 6s6-2 8-6"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <div class="stage-wrap">
+    <div id="stage" class="stage" data-color="sun" role="button" tabindex="0" aria-live="polite">
+      <span class="stage-num" id="stageNum">1 / 10</span>
+      <svg class="stage-icon" aria-hidden="true"><use id="stageIconUse" href="#icon-bell"></use></svg>
+      <span class="stage-label" id="stageLabel">はじめの言葉</span>
+      <p class="stage-phrase" id="stagePhrase">せんせい、おはようございます。これから朝の会をはじめます。</p>
+    </div>
+    <p class="hint">カードをタップすると、ことばがながれて、つぎにすすみます。</p>
+  </div>
+
+  <div id="backdrop" class="backdrop" hidden>
+    <div class="panel" role="dialog" aria-modal="true" aria-label="せってい">
+      <div class="panel-head">
+        <h2>せってい</h2>
+        <button type="button" id="closePanel" class="ui-btn" aria-label="とじる">とじる</button>
+      </div>
+      <div class="panel-row">
+        <button type="button" id="audioToggle" class="ui-btn" aria-pressed="true">🔊 <span>おんせい ON</span></button>
+        <button type="button" id="restartBtn" class="ui-btn">🔁 さいしょから</button>
+      </div>
+      <p id="syncNotice" hidden>この画面では変更を保存できません（見るだけの画面です）。</p>
+      <p class="panel-hint">名前・読みあげることば・色・絵・じゅんばんを、下のリストで編集できます。</p>
+
+      <ul id="program" class="edit-list" artifact-sync>
+        <li class="row" data-color="sun">
+          <svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-bell"></use></svg>
+          <div class="row-fields">
+            <span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">はじめの言葉</span>
+            <div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）">せんせい、おはようございます。これから朝の会をはじめます。</div>
+          </div>
+          <div class="row-ctl">
+            <button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>
+            <button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>
+            <button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>
+            <button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>
+          </div>
+        </li>
+        <li class="row" data-color="sky">
+          <svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-wave"></use></svg>
+          <div class="row-fields">
+            <span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">朝のあいさつ</span>
+            <div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）">みなさん、おはようございます。</div>
+          </div>
+          <div class="row-ctl">
+            <button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>
+            <button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>
+            <button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>
+            <button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>
+          </div>
+        </li>
+        <li class="row" data-color="berry">
+          <svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-heart"></use></svg>
+          <div class="row-fields">
+            <span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">健康観察</span>
+            <div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）">今日も元気に過ごしましょう。</div>
+          </div>
+          <div class="row-ctl">
+            <button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>
+            <button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>
+            <button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>
+            <button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>
+          </div>
+        </li>
+        <li class="row" data-color="leaf">
+          <svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-calendar"></use></svg>
+          <div class="row-fields">
+            <span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">今日の日付</span>
+            <div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）">今日は8月19日、水曜日です。</div>
+          </div>
+          <div class="row-ctl">
+            <button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>
+            <button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>
+            <button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>
+            <button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>
+          </div>
+        </li>
+        <li class="row" data-color="sand">
+          <svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-sun"></use></svg>
+          <div class="row-fields">
+            <span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">今日の天気</span>
+            <div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）">今日の天気は、晴れです。</div>
+          </div>
+          <div class="row-ctl">
+            <button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>
+            <button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>
+            <button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>
+            <button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>
+          </div>
+        </li>
+        <li class="row" data-color="violet">
+          <svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-clipboard"></use></svg>
+          <div class="row-fields">
+            <span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">今日の予定</span>
+            <div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）">今日の予定を発表します。</div>
+          </div>
+          <div class="row-ctl">
+            <button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>
+            <button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>
+            <button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>
+            <button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>
+          </div>
+        </li>
+        <li class="row" data-color="sun">
+          <svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-star"></use></svg>
+          <div class="row-fields">
+            <span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">がんばること</span>
+            <div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）">今日がんばることは、大きな声であいさつをすることです。</div>
+          </div>
+          <div class="row-ctl">
+            <button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>
+            <button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>
+            <button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>
+            <button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>
+          </div>
+        </li>
+        <li class="row" data-color="sky">
+          <svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-music"></use></svg>
+          <div class="row-fields">
+            <span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">朝の歌</span>
+            <div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）">朝の歌をうたいましょう。</div>
+          </div>
+          <div class="row-ctl">
+            <button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>
+            <button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>
+            <button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>
+            <button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>
+          </div>
+        </li>
+        <li class="row" data-color="berry">
+          <svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-speech"></use></svg>
+          <div class="row-fields">
+            <span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">先生のお話</span>
+            <div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）">先生のお話をききましょう。</div>
+          </div>
+          <div class="row-ctl">
+            <button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>
+            <button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>
+            <button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>
+            <button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>
+          </div>
+        </li>
+        <li class="row" data-color="leaf">
+          <svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-flag"></use></svg>
+          <div class="row-fields">
+            <span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">おわりの言葉</span>
+            <div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）">これで朝の会をおわります。</div>
+          </div>
+          <div class="row-ctl">
+            <button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>
+            <button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>
+            <button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>
+            <button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>
+          </div>
+        </li>
+      </ul>
+      <button type="button" id="addBtn" class="ui-btn add-btn">＋ カードをついかする</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var ICONS = ["bell","wave","heart","calendar","sun","clipboard","star","music","speech","flag","book","smile"];
+  var COLORS = ["sun","sky","leaf","berry","violet","sand"];
+
+  var program = document.getElementById("program");
+  var stage = document.getElementById("stage");
+  var stageNum = document.getElementById("stageNum");
+  var stageIconUse = document.getElementById("stageIconUse");
+  var stageLabel = document.getElementById("stageLabel");
+  var stagePhrase = document.getElementById("stagePhrase");
+  var gearBtn = document.getElementById("gearBtn");
+  var closePanel = document.getElementById("closePanel");
+  var backdrop = document.getElementById("backdrop");
+  var audioToggle = document.getElementById("audioToggle");
+  var restartBtn = document.getElementById("restartBtn");
+  var addBtn = document.getElementById("addBtn");
+  var syncNotice = document.getElementById("syncNotice");
+
+  var currentIndex = 0;
+
+  function qsa(sel, el){ return Array.prototype.slice.call((el||document).querySelectorAll(sel)); }
+  function rows(){ return qsa(".row", program); }
+
+  // ---------- stage (child-facing, single card) ----------
+  function render(){
+    var items = rows();
+    if(items.length === 0){
+      stage.dataset.color = "sky";
+      stageIconUse.setAttribute("href", "#icon-smile");
+      stageLabel.textContent = "";
+      stagePhrase.textContent = "カードがありません。せっていからついかしてください。";
+      stageNum.textContent = "";
+      return;
+    }
+    if(currentIndex >= items.length){
+      stage.dataset.color = "sky";
+      stageIconUse.setAttribute("href", "#icon-smile");
+      stageLabel.textContent = "おしまい";
+      stagePhrase.textContent = "今日もがんばりました。もう一度さいしょから、タップしてください。";
+      stageNum.textContent = "";
+      return;
+    }
+    var li = items[currentIndex];
+    var iconHref = li.querySelector(".row-icon use").getAttribute("href");
+    var label = li.querySelector(".row-label").textContent.trim() || "カード";
+    var phraseEl = li.querySelector(".row-phrase");
+    var phrase = (phraseEl.textContent.trim()) || label;
+    var color = li.dataset.color || "sun";
+    stage.dataset.color = color;
+    stageIconUse.setAttribute("href", iconHref);
+    stageLabel.textContent = label;
+    stagePhrase.textContent = phrase;
+    stageNum.textContent = (currentIndex + 1) + " / " + items.length;
+  }
+
+  function pickVoice(){
+    if(!("speechSynthesis" in window)) return null;
+    var voices = window.speechSynthesis.getVoices();
+    if(!voices.length) return null;
+    var exact = voices.filter(function(v){ return v.lang === "ja-JP"; });
+    if(exact.length) return exact[0];
+    var loose = voices.filter(function(v){ return v.lang && v.lang.indexOf("ja") === 0; });
+    return loose.length ? loose[0] : null;
+  }
+
+  function speakText(text){
+    if(!text) return;
+    if(document.body.classList.contains("audio-off")) return;
+    if(!("speechSynthesis" in window)) return;
+    try{
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(text);
+      u.lang = "ja-JP";
+      u.rate = 0.92;
+      u.pitch = 1.05;
+      var v = pickVoice();
+      if(v) u.voice = v;
+      window.speechSynthesis.speak(u);
+    }catch(e){}
+  }
+
+  function activateStage(){
+    var items = rows();
+    if(items.length === 0) return;
+    if(currentIndex >= items.length){
+      currentIndex = 0;
+      render();
+      return;
+    }
+    speakText(stagePhrase.textContent);
+    stage.classList.add("leaving");
+    setTimeout(function(){
+      currentIndex++;
+      render();
+      stage.classList.remove("leaving");
+      stage.classList.add("entering");
+      requestAnimationFrame(function(){
+        requestAnimationFrame(function(){ stage.classList.remove("entering"); });
+      });
+    }, 180);
+  }
+
+  stage.addEventListener("click", activateStage);
+  stage.addEventListener("keydown", function(e){
+    if(e.key === "Enter" || e.key === " "){
+      e.preventDefault();
+      activateStage();
+    }
+  });
+
+  // ---------- settings panel ----------
+  function openPanel(){
+    backdrop.hidden = false;
+    gearBtn.setAttribute("aria-expanded", "true");
+    closePanel.focus();
+  }
+  function closePanelFn(){
+    backdrop.hidden = true;
+    gearBtn.setAttribute("aria-expanded", "false");
+    gearBtn.focus();
+    render();
+  }
+  gearBtn.addEventListener("click", openPanel);
+  closePanel.addEventListener("click", closePanelFn);
+  backdrop.addEventListener("click", function(e){
+    if(e.target === backdrop) closePanelFn();
+  });
+  document.addEventListener("keydown", function(e){
+    if(e.key === "Escape" && !backdrop.hidden) closePanelFn();
+  });
+
+  restartBtn.addEventListener("click", function(){
+    currentIndex = 0;
+    render();
+  });
+
+  function updateAudioLabel(){
+    var off = document.body.classList.contains("audio-off");
+    audioToggle.setAttribute("aria-pressed", off ? "false" : "true");
+    audioToggle.innerHTML = "";
+    audioToggle.appendChild(document.createTextNode(off ? "🔇 " : "🔊 "));
+    var span = document.createElement("span");
+    span.textContent = off ? "おんせい OFF" : "おんせい ON";
+    audioToggle.appendChild(span);
+  }
+  try{
+    if(localStorage.getItem("asakai-audio") === "off") document.body.classList.add("audio-off");
+  }catch(e){}
+  updateAudioLabel();
+  audioToggle.addEventListener("click", function(){
+    var off = document.body.classList.toggle("audio-off");
+    if(off && "speechSynthesis" in window) window.speechSynthesis.cancel();
+    try{ localStorage.setItem("asakai-audio", off ? "off" : "on"); }catch(e){}
+    updateAudioLabel();
+  });
+
+  // ---------- editable list (teacher-facing) ----------
+  function cycleIcon(li){
+    var useEl = li.querySelector(".row-icon use");
+    if(!useEl) return;
+    var cur = (useEl.getAttribute("href") || "").replace("#icon-", "");
+    var idx = ICONS.indexOf(cur);
+    var next = ICONS[(idx + 1 + ICONS.length) % ICONS.length];
+    useEl.setAttribute("href", "#icon-" + next);
+  }
+  function cycleColor(li){
+    var cur = li.dataset.color || "sun";
+    var idx = COLORS.indexOf(cur);
+    li.dataset.color = COLORS[(idx + 1 + COLORS.length) % COLORS.length];
+  }
+  function handleDelete(li){
+    if(li.classList.contains("confirm-delete")){
+      clearTimeout(li._delTimer);
+      li.remove();
+      if(currentIndex >= rows().length) currentIndex = 0;
+      return;
+    }
+    li.classList.add("confirm-delete");
+    var btn = li.querySelector(".ctl-del");
+    if(btn) btn.textContent = "本当に？";
+    clearTimeout(li._delTimer);
+    li._delTimer = setTimeout(function(){
+      li.classList.remove("confirm-delete");
+      if(btn) btn.textContent = "✕";
+    }, 3000);
+  }
+  function moveRow(li, dir){
+    var parent = li.parentElement;
+    if(dir === "up"){
+      var prev = li.previousElementSibling;
+      if(prev) parent.insertBefore(li, prev);
+    } else {
+      var next = li.nextElementSibling;
+      if(next) parent.insertBefore(next, li);
+    }
+  }
+
+  function newRowMarkup(){
+    return '' +
+      '<svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-star"></use></svg>' +
+      '<div class="row-fields">' +
+        '<span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">あたらしいカード</span>' +
+        '<div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）"></div>' +
+      '</div>' +
+      '<div class="row-ctl">' +
+        '<button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>' +
+        '<button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>' +
+        '<button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>' +
+        '<button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>' +
+      '</div>';
+  }
+  function selectAll(el){
+    try{
+      var range = document.createRange();
+      range.selectNodeContents(el);
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }catch(e){}
+  }
+  addBtn.addEventListener("click", function(){
+    var li = document.createElement("li");
+    li.className = "row";
+    li.dataset.color = COLORS[Math.floor(Math.random() * COLORS.length)];
+    li.innerHTML = newRowMarkup();
+    program.appendChild(li);
+    var labelEl = li.querySelector(".row-label");
+    if(labelEl){ labelEl.focus(); selectAll(labelEl); }
+  });
+
+  program.addEventListener("click", function(e){
+    var li = e.target.closest ? e.target.closest("li.row") : null;
+    if(!li) return;
+    if(e.target.closest(".row-icon")){ cycleIcon(li); return; }
+    if(e.target.closest(".ctl-color")){ cycleColor(li); return; }
+    if(e.target.closest(".ctl-up")){ moveRow(li, "up"); return; }
+    if(e.target.closest(".ctl-down")){ moveRow(li, "down"); return; }
+    if(e.target.closest(".ctl-del")){ handleDelete(li); return; }
+  });
+  program.addEventListener("keydown", function(e){
+    var t = e.target;
+    if(!t.classList) return;
+    if(t.classList.contains("row-label") || t.classList.contains("row-phrase")){
+      if(e.key === "Enter"){ e.preventDefault(); t.blur(); }
+      return;
+    }
+    if(t.classList.contains("row-icon") && (e.key === "Enter" || e.key === " ")){
+      e.preventDefault();
+      var li = t.closest("li.row");
+      if(li) cycleIcon(li);
+    }
+  });
+  program.addEventListener("input", function(e){
+    var t = e.target;
+    if(!t.classList) return;
+    if(t.classList.contains("row-label") || t.classList.contains("row-phrase")){
+      if(t.querySelector("*")){ t.textContent = t.textContent; }
+    }
+  });
+  program.addEventListener("claude:sync-off", function(){
+    syncNotice.hidden = false;
+  });
+
+  render();
+})();
+</script>
