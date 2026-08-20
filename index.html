@@ -1,4 +1,9 @@
 <title>音声タップボード</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="音声タップボード">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap">
 <style>
   :root{
@@ -508,6 +513,7 @@
         <div class="panel-row">
           <button type="button" id="testVoiceBtn" class="ui-btn">▶ ためしにきく</button>
         </div>
+        <p class="field-label" id="speechStatus">じょうたい：まだ試していません</p>
       </div>
 
       <div id="boardsData">
@@ -679,8 +685,13 @@
   var rateRange = document.getElementById("rateRange");
   var rateValue = document.getElementById("rateValue");
   var testVoiceBtn = document.getElementById("testVoiceBtn");
+  var speechStatus = document.getElementById("speechStatus");
 
   var currentIndex = 0;
+
+  function setSpeechStatus(text){
+    if(speechStatus) speechStatus.textContent = "じょうたい：" + text;
+  }
 
   function qsa(sel, el){ return Array.prototype.slice.call((el||document).querySelectorAll(sel)); }
 
@@ -810,10 +821,15 @@
     speakText("こんにちは。これは、おんせいのテストです。");
   });
 
+  // Safari (iOS/macOS) has a well-known bug where a SpeechSynthesisUtterance
+  // that isn't referenced anywhere gets garbage-collected mid-speech, and
+  // another where speechSynthesis stays "paused" after certain interactions.
+  // Keeping a live reference + explicit resume() works around both.
+  var currentUtterance = null;
   function speakText(text){
     if(!text) return;
-    if(document.body.classList.contains("audio-off")) return;
-    if(!("speechSynthesis" in window)) return;
+    if(document.body.classList.contains("audio-off")){ setSpeechStatus("おんせいがOFFです"); return; }
+    if(!("speechSynthesis" in window)){ setSpeechStatus("この端末はおんせい読み上げに対応していません"); return; }
     try{
       window.speechSynthesis.cancel();
       var u = new SpeechSynthesisUtterance(text);
@@ -822,8 +838,15 @@
       u.pitch = 1.05;
       var v = currentVoice();
       if(v) u.voice = v;
+      u.onstart = function(){ setSpeechStatus("さいせい中… (" + (v ? v.name : "既定のこえ") + ")"); };
+      u.onend = function(){ setSpeechStatus("さいせい終了"); };
+      u.onerror = function(ev){ setSpeechStatus("エラー: " + (ev && ev.error ? ev.error : "不明なエラー")); };
+      currentUtterance = u;
+      setSpeechStatus("よびだし中… (声:" + (v ? v.name : "なし") + " / 声の数:" + (window.speechSynthesis.getVoices().length) + ")");
       window.speechSynthesis.speak(u);
-    }catch(e){}
+    }catch(e){
+      setSpeechStatus("れいがい: " + (e && e.message ? e.message : e));
+    }
   }
 
   function activateStage(){
