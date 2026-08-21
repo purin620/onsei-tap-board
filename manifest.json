@@ -1,0 +1,13 @@
+{
+  "name": "音声タップボード",
+  "short_name": "音声タップボード",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F2F5F1",
+  "theme_color": "#2F7B6C",
+  "lang": "ja",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
