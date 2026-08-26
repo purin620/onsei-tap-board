@@ -503,6 +503,7 @@
           <button type="button" id="restartBtn" class="ui-btn">🔁 さいしょから</button>
         </div>
         <p class="panel-hint">朝の会・帰りの会など、場面ごとにボードを分けて保存できます。カードの名前・読みあげることば・色・絵・じゅんばんは、下のリストで編集できます。</p>
+        <p class="field-label" id="saveStatus">ほぞん：まだ確認していません</p>
       </div>
 
       <div class="panel-section">
@@ -690,6 +691,7 @@
   var rateValue = document.getElementById("rateValue");
   var testVoiceBtn = document.getElementById("testVoiceBtn");
   var speechStatus = document.getElementById("speechStatus");
+  var saveStatus = document.getElementById("saveStatus");
 
   var currentIndex = 0;
 
@@ -765,29 +767,51 @@
     });
   }
   var STORAGE_KEY = "onsei-boards-v1";
+  function reportSave(text){
+    if(saveStatus) saveStatus.textContent = "ほぞん：" + text;
+  }
   function saveBoardsNow(){
-    if(isClaudeArtifact) return;
-    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeBoards())); }catch(e){}
+    if(isClaudeArtifact){ reportSave("Claude側の自動保存を使用中"); return; }
+    try{
+      var json = JSON.stringify(serializeBoards());
+      localStorage.setItem(STORAGE_KEY, json);
+      var check = localStorage.getItem(STORAGE_KEY);
+      if(check === json){
+        reportSave("せいこう（" + json.length + "もじ ほぞんしました）");
+      } else {
+        reportSave("しっぱい（保存した内容を読み直せませんでした）");
+      }
+    }catch(e){
+      reportSave("しっぱい：" + (e && e.name ? e.name + " " : "") + (e && e.message ? e.message : e));
+    }
   }
   var saveTimer = null;
   function scheduleSave(){
     if(isClaudeArtifact) return;
+    reportSave("へんこうを けんち…");
     clearTimeout(saveTimer);
     saveTimer = setTimeout(saveBoardsNow, 250);
   }
   function loadSavedBoards(){
-    if(isClaudeArtifact) return false;
+    if(isClaudeArtifact){ reportSave("Claude側の自動保存を使用中"); return false; }
     var raw;
-    try{ raw = localStorage.getItem(STORAGE_KEY); }catch(e){ raw = null; }
-    if(!raw) return false;
+    try{ raw = localStorage.getItem(STORAGE_KEY); }catch(e){
+      reportSave("よみこみしっぱい：" + (e && e.message ? e.message : e));
+      return false;
+    }
+    if(!raw){ reportSave("この端末にほぞんデータはまだありません"); return false; }
     var data;
-    try{ data = JSON.parse(raw); }catch(e){ return false; }
-    if(!Array.isArray(data) || !data.length) return false;
+    try{ data = JSON.parse(raw); }catch(e){
+      reportSave("ほぞんデータがこわれています：" + (e && e.message ? e.message : e));
+      return false;
+    }
+    if(!Array.isArray(data) || !data.length){ reportSave("この端末にほぞんデータはまだありません"); return false; }
     boardsData.innerHTML = data.map(boardDataHTML).join("");
     if(!boardsData.querySelector('.board[data-active="true"]')){
       var first = boardsData.querySelector(".board");
       if(first) first.setAttribute("data-active", "true");
     }
+    reportSave("まえかいの保存データを読み込みました（" + raw.length + "もじ）");
     return true;
   }
 
