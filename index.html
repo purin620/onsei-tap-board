@@ -708,6 +708,89 @@
     return qsa(".row", b.querySelector(".row-list"));
   }
 
+  // ---------- persistence ----------
+  // Inside a Claude artifact, card content is already kept in sync by the
+  // platform's artifact-sync mechanism (the "artifact-sync" attribute on
+  // #boardsData). Outside that context (this same file hosted plainly,
+  // e.g. on GitHub Pages / installed as a desktop app), nothing saves
+  // edits at all, so we fall back to localStorage there.
+  var isClaudeArtifact = !!(window.claude && typeof window.claude.use === "function");
+
+  function escapeHtml(s){
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+  function rowDataHTML(item){
+    var color = item.color || COLORS[0];
+    var icon = item.icon || "star";
+    return '<li class="row" data-color="' + escapeHtml(color) + '">' +
+      '<svg class="row-icon" aria-hidden="true" role="button" tabindex="0" aria-label="絵をかえる"><use href="#icon-' + escapeHtml(icon) + '"></use></svg>' +
+      '<div class="row-fields">' +
+        '<span class="row-label" contenteditable="true" spellcheck="false" data-placeholder="（なまえ）">' + escapeHtml(item.label) + '</span>' +
+        '<div class="row-phrase" contenteditable="true" spellcheck="false" data-placeholder="（よみあげることば）">' + escapeHtml(item.phrase) + '</div>' +
+      '</div>' +
+      '<div class="row-ctl">' +
+        '<button type="button" class="ctl ctl-color" aria-label="色をかえる">色</button>' +
+        '<button type="button" class="ctl ctl-up" aria-label="上へ移動">▲</button>' +
+        '<button type="button" class="ctl ctl-down" aria-label="下へ移動">▼</button>' +
+        '<button type="button" class="ctl ctl-del" aria-label="このカードを消す">✕</button>' +
+      '</div>' +
+    '</li>';
+  }
+  function boardDataHTML(b){
+    return '<section class="board"' + (b.active ? ' data-active="true"' : '') + '>' +
+      '<div class="board-head">' +
+        '<h3 class="board-name" contenteditable="true" spellcheck="false" data-placeholder="（ボードのなまえ）">' + escapeHtml(b.name) + '</h3>' +
+        '<button type="button" class="ui-btn board-del" aria-label="このボードを消す">✕ ボードをけす</button>' +
+      '</div>' +
+      '<ul class="row-list">' + (b.rows || []).map(rowDataHTML).join("") + '</ul>' +
+      '<button type="button" class="ui-btn add-btn board-add-row">＋ カードをついかする</button>' +
+    '</section>';
+  }
+  function serializeBoards(){
+    return qsa(".board", boardsData).map(function(b){
+      return {
+        name: b.querySelector(".board-name").textContent,
+        active: b.getAttribute("data-active") === "true",
+        rows: qsa(".row", b.querySelector(".row-list")).map(function(li){
+          var useEl = li.querySelector(".row-icon use");
+          return {
+            color: li.dataset.color || "sun",
+            icon: (useEl && useEl.getAttribute("href") || "").replace("#icon-", ""),
+            label: li.querySelector(".row-label").textContent,
+            phrase: li.querySelector(".row-phrase").textContent
+          };
+        })
+      };
+    });
+  }
+  var STORAGE_KEY = "onsei-boards-v1";
+  function saveBoardsNow(){
+    if(isClaudeArtifact) return;
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeBoards())); }catch(e){}
+  }
+  var saveTimer = null;
+  function scheduleSave(){
+    if(isClaudeArtifact) return;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveBoardsNow, 250);
+  }
+  function loadSavedBoards(){
+    if(isClaudeArtifact) return false;
+    var raw;
+    try{ raw = localStorage.getItem(STORAGE_KEY); }catch(e){ raw = null; }
+    if(!raw) return false;
+    var data;
+    try{ data = JSON.parse(raw); }catch(e){ return false; }
+    if(!Array.isArray(data) || !data.length) return false;
+    boardsData.innerHTML = data.map(boardDataHTML).join("");
+    if(!boardsData.querySelector('.board[data-active="true"]')){
+      var first = boardsData.querySelector(".board");
+      if(first) first.setAttribute("data-active", "true");
+    }
+    return true;
+  }
+
   // ---------- board tabs ----------
   function renderBoardTabs(){
     var boards = qsa(".board", boardsData);
@@ -725,6 +808,7 @@
         currentIndex = 0;
         renderBoardTabs();
         render();
+        scheduleSave();
       });
       boardTabs.appendChild(btn);
     });
@@ -937,11 +1021,13 @@
     var idx = ICONS.indexOf(cur);
     var next = ICONS[(idx + 1 + ICONS.length) % ICONS.length];
     useEl.setAttribute("href", "#icon-" + next);
+    scheduleSave();
   }
   function cycleColor(li){
     var cur = li.dataset.color || "sun";
     var idx = COLORS.indexOf(cur);
     li.dataset.color = COLORS[(idx + 1 + COLORS.length) % COLORS.length];
+    scheduleSave();
   }
   function handleDelete(li){
     if(li.classList.contains("confirm-delete")){
@@ -949,6 +1035,7 @@
       li.remove();
       if(currentIndex >= rows().length) currentIndex = 0;
       render();
+      scheduleSave();
       return;
     }
     li.classList.add("confirm-delete");
@@ -969,6 +1056,7 @@
       var next = li.nextElementSibling;
       if(next) parent.insertBefore(next, li);
     }
+    scheduleSave();
   }
   function newRowMarkup(){
     return "" +
@@ -1001,6 +1089,7 @@
     rowList.appendChild(li);
     var labelEl = li.querySelector(".row-label");
     if(labelEl){ labelEl.focus(); selectAll(labelEl); }
+    scheduleSave();
   }
 
   // ---------- boards ----------
@@ -1023,6 +1112,7 @@
     currentIndex = 0;
     renderBoardTabs();
     render();
+    scheduleSave();
     var nameEl = section.querySelector(".board-name");
     if(nameEl){ nameEl.focus(); selectAll(nameEl); }
   });
@@ -1041,6 +1131,7 @@
       currentIndex = 0;
       renderBoardTabs();
       render();
+      scheduleSave();
       return;
     }
     section.classList.add("confirm-delete");
@@ -1087,12 +1178,16 @@
     if(t.classList.contains("row-label") || t.classList.contains("row-phrase") || t.classList.contains("board-name")){
       if(t.querySelector("*")){ t.textContent = t.textContent; }
       if(t.classList.contains("board-name")) renderBoardTabs();
+      if(t.classList.contains("row-label")) render();
+      scheduleSave();
     }
   });
   boardsData.addEventListener("claude:sync-off", function(){
     syncNotice.hidden = false;
   });
+  window.addEventListener("beforeunload", saveBoardsNow);
 
+  loadSavedBoards();
   renderBoardTabs();
   render();
 })();
