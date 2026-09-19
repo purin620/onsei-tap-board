@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS posts (
     title TEXT,
     body_raw TEXT,
     image_url TEXT,
-    source TEXT NOT NULL DEFAULT 'site'  -- 'site' or 'instagram'
+    source TEXT NOT NULL DEFAULT 'site',  -- 'site' or 'instagram'
+    source_url TEXT                  -- 元記事のURL(再取得時の重複排除キー)
 );
 
 CREATE TABLE IF NOT EXISTS extracted (
@@ -41,3 +42,5 @@ CREATE TABLE IF NOT EXISTS conditions (
 
 CREATE INDEX IF NOT EXISTS idx_posts_boat_date ON posts(boat_id, date);
 CREATE INDEX IF NOT EXISTS idx_extracted_post ON extracted(post_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_posts_unique_source
+    ON posts(boat_id, source_url) WHERE source_url IS NOT NULL;

@@ -10,7 +10,7 @@
 
 - [x] Phase 1: DBスキーマ構築＋手動データ数件でプロトタイプ
 - [x] Phase 2: 気象庁/Open-Meteo等、外部API連携（下記「Phase 2について」の要確認事項あり）
-- [ ] Phase 3: 4隻のサイト構造調査→1隻分のスクレイパー試作
+- [x] Phase 3: 4隻のサイト構造調査→1隻分のスクレイパー試作（下記「Phase 3について」の要確認事項あり）
 - [ ] Phase 4: 残り3隻へ横展開
 - [ ] Phase 5: Claude APIでの本文構造化抽出
 - [ ] Phase 6: 分析・可視化ダッシュボード（Streamlitなど）
@@ -31,6 +31,14 @@ python query.py            # posts+extracted+conditions のJOIN結果を確認
 python test_fetch_weather.py                      # オフラインでのパース処理検証
 python fetch_weather.py 2026-05-01 2026-05-07      # Open-Meteoから気温・風を取得して表示
 python update_conditions.py 2026-05-01 2026-05-07  # conditionsテーブルへ反映
+```
+
+## 実行例 (Phase 3)
+
+```bash
+python test_scraper_yutakamaru.py  # オフラインでのパース処理検証
+python test_persist_posts.py       # DB保存(重複排除)の検証
+python persist_posts.py 1          # ゆたか丸のカテゴリ1ページ分を取得してDBへ保存
 ```
 
 ## スキーマ (`schema.sql`)
@@ -65,7 +73,51 @@ python update_conditions.py 2026-05-01 2026-05-07  # conditionsテーブルへ�
 ただしAPIへの実際のHTTPリクエストは、ネットワークアクセス可能な環境で
 `python fetch_weather.py 2026-05-01 2026-05-07` のように実行して確認すること。
 
+## Phase 3について（サイト構造調査＋1隻分のスクレイパー試作）
+
+**このセッションでは4隻のサイト（yutakamaru1.com / zekkouchou.com / koushinmaru-miyako.com /
+ryushomaru.co.jp）への直接アクセスがサンドボックスのegressポリシーでブロックされており、
+「実際にアクセスして構造を調査する」ことができなかった。** 代わりにWeb検索で得られる
+断片的な情報から構造を推定している。ネットワークアクセス可能な環境で実際にサイトを開いて
+確認・検証すること。
+
+### 調査でわかったこと（Web検索ベース、未検証）
+
+- **ゆたか丸**: WordPressサイト。釣果カテゴリページ `https://yutakamaru1.com/category/tyouka/`、
+  個別記事は `https://yutakamaru1.com/<数字>/` という永続リンク形式。WordPressのREST API
+  (`/wp-json/wp/v2/posts`) がデフォルトで有効なことが多いため、HTMLスクレイピングより
+  こちらを優先する方針にした。→ `scraper_yutakamaru.py` として試作。
+- **平進丸**: 公式サイト内に `zekkouchou.com/si/pmrun/sokuhou.cgi?...` という
+  「釣果速報」用の別システム(CGI)が存在する可能性がある。この`pmrun/sokuhou.cgi`という
+  URLパターンは他地域の釣船サイトでも見られ、複数の釣船が共通のベンダー提供システムを
+  使っている可能性がある（要確認）。実際の出力形式・パラメータ意味は未調査。
+- **こうしん丸**: 検索結果からは店舗情報・Instagram・LINE公式アカウントの存在は確認できたが、
+  釣果情報専用ページの構造は特定できなかった。設計メモの通りLinktree型で営業情報と
+  釣果報告が混在している可能性が高い。
+- **隆勝丸**: `ryushomaru.co.jp/page1.html` がトップページ。単純なページ構成と見られるが
+  詳細構造は未調査。ホタテ漁との兼業で出船が不定期なため、更新頻度自体が低いと想定される。
+
+### 実装したもの（ゆたか丸のみ、Phase 3の範囲）
+
+- `scraper_yutakamaru.py`: WordPress REST APIから釣果カテゴリの記事を取得し、
+  日付・タイトル・本文（HTML除去済みのプレーンテキスト）・アイキャッチ画像URL・記事URLを抽出。
+- `html_text.py`: HTML本文から改行を保ったプレーンテキストを抽出する小さいユーティリティ。
+- `persist_posts.py`: 取得結果を`posts`テーブルへ保存。`source_url`をキーに重複を排除し、
+  再実行しても同じ記事が重複登録されない（`test_persist_posts.py`で検証済み）。
+- スキーマに `posts.source_url` 列と一意インデックスを追加（重複排除のため）。
+
+### 要確認・未解決事項
+
+1. `CATEGORY_SLUG = "tyouka"`（釣果カテゴリのスラッグ）が正しいか、実際のサイトで確認が必要。
+2. サイトがWordPress REST APIを無効化している場合、`scraper_yutakamaru.py`は動作しない
+   （その場合はHTMLスクレイピングへの切り替えが必要）。
+3. 平進丸・こうしん丸・隆勝丸の実際のページ構造はまだ調査できていない（Phase 4で対応）。
+
+`parse_posts_response()` は `test_scraper_yutakamaru.py` でオフライン検証済み。
+ただし実際のAPIレスポンスでの検証は未実施のため、ネットワークアクセス可能な環境で
+`python persist_posts.py 1` を実行して確認すること。
+
 ## 次にやること
 
-Phase 3として、4隻（ゆたか丸・平進丸・こうしん丸・隆勝丸）の公式サイトに実際にアクセスして
-釣果情報の掲載構造を調査し、まず1隻分のスクレイパーを試作する。
+Phase 4として、平進丸・こうしん丸・隆勝丸の3隻について実際にサイトへアクセスして構造を確認し、
+それぞれ専用のスクレイパーを実装する。
