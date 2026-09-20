@@ -8,7 +8,8 @@ from init_db import init_db
 from persist_posts import insert_posts
 
 RECORDS = [
-    {"date": "2026-05-10", "title": "t1", "body_raw": "b1", "image_url": None,
+    {"date": "2026-05-10", "title": "t1", "body_raw": "b1", "image_url": "https://example.com/img/1a.jpg",
+     "image_urls": ["https://example.com/img/1a.jpg", "https://example.com/img/1b.jpg"],
      "source": "site", "source_url": "https://example.com/1"},
     {"date": "2026-05-11", "title": "t2", "body_raw": "b2", "image_url": None,
      "source": "site", "source_url": "https://example.com/2"},
@@ -32,8 +33,10 @@ def test_insert_posts_dedup():
 
     conn = sqlite3.connect(db_path)
     count = conn.execute("SELECT COUNT(*) FROM posts").fetchone()[0]
+    image_count = conn.execute("SELECT COUNT(*) FROM post_images").fetchone()[0]
     conn.close()
     assert count == 2
+    assert image_count == 2  # RECORDS[0]の2枚のみ、RECORDS[1]は画像なし
 
 
 if __name__ == "__main__":

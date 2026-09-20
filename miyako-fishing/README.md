@@ -44,7 +44,8 @@ python persist_posts.py 1          # ゆたか丸のカテゴリ1ページ分を
 ## スキーマ (`schema.sql`)
 
 - `boats`: 船マスタ（船名・Instagram・公式サイトURL）
-- `posts`: 各船の釣果記事（日付・タイトル・本文・画像URL・取得元）
+- `posts`: 各船の釣果記事（日付・タイトル・本文・アイキャッチ画像URL・取得元・元記事URL）
+- `post_images`: 1記事に複数枚含まれる写真のURL一覧（ギャラリー投稿対応、Phase 3で追加）
 - `extracted`: `posts` からAI抽出した釣果情報（魚種・匹数or段階評価・サイズ・タックル情報・信頼度メモ）
 - `conditions`: 日付ごとの自然条件（潮回り・満潮干潮時刻・水温・気温・風）
 
@@ -106,16 +107,31 @@ ryushomaru.co.jp）への直接アクセスがサンドボックスのegressポ�
   再実行しても同じ記事が重複登録されない（`test_persist_posts.py`で検証済み）。
 - スキーマに `posts.source_url` 列と一意インデックスを追加（重複排除のため）。
 
-### 要確認・未解決事項
+### 実データ検証結果（2026-09-20、ユーザーがブラウザで確認）
 
-1. `CATEGORY_SLUG = "tyouka"`（釣果カテゴリのスラッグ）が正しいか、実際のサイトで確認が必要。
-2. サイトがWordPress REST APIを無効化している場合、`scraper_yutakamaru.py`は動作しない
+`https://yutakamaru1.com/wp-json/wp/v2/categories?slug=tyouka` と
+`https://yutakamaru1.com/wp-json/wp/v2/posts?categories=1&_embed=1&per_page=1` の
+実レスポンスで以下が確認できた。
+
+- カテゴリスラッグ`tyouka`は正しく、`name`は「釣果情報」、記事数425件、`id`は1。
+- WordPress REST APIは有効。`date`/`title.rendered`/`content.rendered`/`link`/
+  `_embedded.wp:featuredmedia[0].source_url`はすべて想定通りの構造。
+- **新たな発見**: 本文(`content.rendered`)の先頭にGoogleアドセンスの広告`<script>`が
+  `<aside>`で挿入されている（中身が空のため`html_to_text()`には影響なし、テストにも追加済み）。
+- **新たな発見（重要・スキーマ修正済み）**: 1記事にギャラリー形式で複数枚(確認できた例では4枚)の
+  写真が含まれる。アイキャッチ画像(`wp:featuredmedia`)はそのうちの1枚に過ぎず、
+  取りこぼしていた。→ `post_images`テーブルを追加し、本文中の全`<img src>`を
+  `extract_image_urls()`(`html_text.py`)で取得して保存するよう修正した
+  （`posts.image_url`はアイキャッチ、無ければ本文1枚目を後方互換として保持）。
+
+### 残っている要確認事項
+
+1. サイトがWordPress REST APIを無効化する変更をした場合、`scraper_yutakamaru.py`は動作しない
    （その場合はHTMLスクレイピングへの切り替えが必要）。
-3. 平進丸・こうしん丸・隆勝丸の実際のページ構造はまだ調査できていない（Phase 4で対応）。
+2. 平進丸・こうしん丸・隆勝丸の実際のページ構造はまだ調査できていない（Phase 4で対応）。
 
-`parse_posts_response()` は `test_scraper_yutakamaru.py` でオフライン検証済み。
-ただし実際のAPIレスポンスでの検証は未実施のため、ネットワークアクセス可能な環境で
-`python persist_posts.py 1` を実行して確認すること。
+`parse_posts_response()`は`test_scraper_yutakamaru.py`で実データの構造を反映した
+サンプルで検証済み。実際の全ページ取得・DB保存は`python persist_posts.py`で確認すること。
 
 ## 次にやること
 

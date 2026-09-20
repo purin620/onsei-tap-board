@@ -30,7 +30,15 @@ def insert_posts(boat_name: str, records: list[dict], db_path: Path = DB_PATH) -
                 (boat_id, r["date"], r.get("title"), r.get("body_raw"), r.get("image_url"),
                  r.get("source", "site"), r.get("source_url")),
             )
-            inserted += cur.rowcount
+            if cur.rowcount == 0:
+                continue  # 既存記事(source_url重複)なのでpost_imagesも投入済みのはず
+            inserted += 1
+            post_id = cur.lastrowid
+            for order, image_url in enumerate(r.get("image_urls") or []):
+                cur.execute(
+                    "INSERT INTO post_images (post_id, image_url, sort_order) VALUES (?, ?, ?)",
+                    (post_id, image_url, order),
+                )
         conn.commit()
         return inserted
     finally:

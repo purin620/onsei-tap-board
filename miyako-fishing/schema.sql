@@ -18,6 +18,13 @@ CREATE TABLE IF NOT EXISTS posts (
     source_url TEXT                  -- 元記事のURL(再取得時の重複排除キー)
 );
 
+CREATE TABLE IF NOT EXISTS post_images (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_id INTEGER NOT NULL REFERENCES posts(id),
+    image_url TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS extracted (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     post_id INTEGER NOT NULL REFERENCES posts(id),
@@ -42,5 +49,6 @@ CREATE TABLE IF NOT EXISTS conditions (
 
 CREATE INDEX IF NOT EXISTS idx_posts_boat_date ON posts(boat_id, date);
 CREATE INDEX IF NOT EXISTS idx_extracted_post ON extracted(post_id);
+CREATE INDEX IF NOT EXISTS idx_post_images_post ON post_images(post_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_posts_unique_source
     ON posts(boat_id, source_url) WHERE source_url IS NOT NULL;

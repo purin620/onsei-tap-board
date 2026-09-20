@@ -18,7 +18,7 @@ egressポリシーでブロックされており、実際のAPIレスポンス�
 
 import requests
 
-from html_text import html_to_text
+from html_text import extract_image_urls, html_to_text
 
 SITE_URL = "https://yutakamaru1.com"
 CATEGORY_SLUG = "tyouka"  # 「釣果情報」カテゴリ
@@ -34,19 +34,31 @@ def _get_category_id(slug: str) -> int:
 
 
 def parse_posts_response(items: list[dict]) -> list[dict]:
-    """WP REST API の posts レスポンス(`_embed=1`込み)を posts テーブル用レコードに変換する。"""
+    """WP REST API の posts レスポンス(`_embed=1`込み)を posts テーブル用レコードに変換する。
+
+    実データ確認により、本文(content.rendered)にはギャラリー形式で複数枚の写真が
+    含まれることが分かった(1記事に4枚など)。アイキャッチ画像(featuredmedia)は
+    そのうちの1枚に過ぎないため、本文中の全<img>を "image_urls" として別途返し、
+    "image_url" は後方互換のためアイキャッチ(無ければ本文1枚目)を入れておく。
+    """
     records = []
     for item in items:
-        image_url = None
+        content_html = item["content"]["rendered"]
+        content_image_urls = extract_image_urls(content_html)
+
+        featured_image_url = None
         embedded_media = item.get("_embedded", {}).get("wp:featuredmedia")
         if embedded_media:
-            image_url = embedded_media[0].get("source_url")
+            featured_image_url = embedded_media[0].get("source_url")
+
+        image_url = featured_image_url or (content_image_urls[0] if content_image_urls else None)
 
         records.append({
             "date": item["date"][:10],  # 'YYYY-MM-DDTHH:MM:SS' -> 'YYYY-MM-DD'
             "title": html_to_text(item["title"]["rendered"]),
-            "body_raw": html_to_text(item["content"]["rendered"]),
+            "body_raw": html_to_text(content_html),
             "image_url": image_url,
+            "image_urls": content_image_urls,
             "source": "site",
             "source_url": item["link"],
         })
