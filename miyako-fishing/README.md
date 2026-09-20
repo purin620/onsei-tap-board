@@ -11,7 +11,7 @@
 - [x] Phase 1: DBスキーマ構築＋手動データ数件でプロトタイプ
 - [x] Phase 2: 気象庁/Open-Meteo等、外部API連携（下記「Phase 2について」の要確認事項あり）
 - [x] Phase 3: 4隻のサイト構造調査→1隻分のスクレイパー試作（下記「Phase 3について」の要確認事項あり）
-- [ ] Phase 4: 残り3隻へ横展開
+- [~] Phase 4: 残り3隻へ横展開（平進丸のみ実装済み。下記「Phase 4について」参照）
 - [ ] Phase 5: Claude APIでの本文構造化抽出
 - [ ] Phase 6: 分析・可視化ダッシュボード（Streamlitなど）
 
@@ -133,7 +133,45 @@ ryushomaru.co.jp）への直接アクセスがサンドボックスのegressポ�
 `parse_posts_response()`は`test_scraper_yutakamaru.py`で実データの構造を反映した
 サンプルで検証済み。実際の全ページ取得・DB保存は`python persist_posts.py`で確認すること。
 
+## Phase 4について（残り3隻への横展開）
+
+### 平進丸（実装済み）
+
+ユーザーがブラウザで実際にページを開き、右クリック→「検証」で表示中のHTML構造を
+確認してくれたことで実装できた（2026-09-20）。
+
+- ページ: `https://zekkouchou.com/heishinmaru/catch.php`
+- **技術的な注意点**: このページは最初のHTML(view-source)には釣果の中身が無く、
+  あとからJavaScriptが内容を差し込む作りだった。そのため`requests`では取得できず、
+  `scraper_heishinmaru.py`ではPlaywright（ブラウザを実際に動かして描画させるツール）
+  でページを開き、表示が終わるのを待ってからHTMLを取得している。
+  実行前に `playwright install chromium` が別途必要。
+- 確認できた構造:
+  - 1回分の更新は`<div class="catch-block">`で区切られる（間に広告`<ul class="catch-ad">`が挟まる）
+  - 日付は`<p class="catch-date">`、潮回り（大潮/中潮等）は`<span class="catch-tide">`
+  - 釣果の文章は`<div class="catch-info-comment"><p>...</p></div>`に自由文（絵文字あり）で入っている。
+    1つの更新に複数日分（例: 9/15と9/14）がまとめて書かれることがある → Phase 5で分割する
+  - 写真は`<div class="catch-photo">`内の`<img>`。画像は`chowari.jp`という別ドメイン
+- **ボーナス**: このページ自体に潮回りが載っているため、`persist_heishinmaru.py`は
+  `posts`への保存に加えて`conditions.tide_type`も直接更新する
+  （tide736.netの港コード未確認問題を一部回避できる）。
+- **未実装**: `<div class="catch-tidegraph">`に気温・水温・風などの詳細情報があることは
+  画面上で確認できているが、内部のタグ構造はまだ未確認（次の調査候補）。
+
+### こうしん丸・隆勝丸（未着手）
+
+まだ実際のページ構造を確認できていない。確認する際は、平進丸で行ったのと同じ手順
+（ページを開く→気になる文字の上で右クリック→「検証」→出てきた画面をスクリーンショット）
+で進める。
+
+## 実行例 (Phase 4)
+
+```bash
+python test_scraper_heishinmaru.py  # オフラインでのパース処理検証
+playwright install chromium         # 初回のみ必要
+python persist_heishinmaru.py       # 平進丸のページを取得してDBへ保存(潮回りもconditionsへ反映)
+```
+
 ## 次にやること
 
-Phase 4として、平進丸・こうしん丸・隆勝丸の3隻について実際にサイトへアクセスして構造を確認し、
-それぞれ専用のスクレイパーを実装する。
+こうしん丸・隆勝丸の実際のページ構造を確認し、それぞれ専用のスクレイパーを実装する。
