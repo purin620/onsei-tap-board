@@ -9,6 +9,7 @@ import requests
 from config import MIYAKO_LAT, MIYAKO_LON
 
 ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
+FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 
 # 度(0-360)を16方位の日本語表記に変換
 _DIRECTIONS_JA = [
@@ -52,6 +53,21 @@ def fetch_weather(start_date: str, end_date: str) -> list[dict]:
         "timezone": "Asia/Tokyo",
     }
     resp = requests.get(ARCHIVE_URL, params=params, timeout=30)
+    resp.raise_for_status()
+    return parse_daily_response(resp.json())
+
+
+def fetch_weather_forecast(days: int = 7) -> list[dict]:
+    """今日から先days日分の気温・風の予報を返す(Open-Meteo Forecast API、最大16日)。"""
+    params = {
+        "latitude": MIYAKO_LAT,
+        "longitude": MIYAKO_LON,
+        "forecast_days": days,
+        "daily": "temperature_2m_max,temperature_2m_min,wind_speed_10m_max,wind_direction_10m_dominant",
+        "wind_speed_unit": "ms",
+        "timezone": "Asia/Tokyo",
+    }
+    resp = requests.get(FORECAST_URL, params=params, timeout=30)
     resp.raise_for_status()
     return parse_daily_response(resp.json())
 
