@@ -5,8 +5,9 @@
 - イカ: 水温との相関を中心に見る
 
 【重要な制約・注意点】
-- Phase 5(釣果の文章からAIで魚種・匹数を読み取る仕組み)がまだ実装されておらず、
-  `extracted`テーブルの中身はPhase 1で手入力したごく少数のダミーデータしかない。
+- Phase 5(`extract_catches.py`、釣果の文章からAIで魚種・匹数を読み取る仕組み)は実装済みだが、
+  実データに対してまだ実行されておらず、`extracted`テーブルの中身はPhase 1で手入力した
+  ごく少数のダミーデータしかない。
   統計的に意味のある傾向はまだ出せないため、この段階では実データ件数が少ないときに
   「まだ十分なデータがありません」と明示し、断定的な提案をしないようにしてある。
 - 潮回りの将来予測(tide736.net)はPhase 2で港コード(TIDE_HC)が未確認のまま。
@@ -45,11 +46,13 @@ def load_catch_conditions(species: str, db_path=DB_PATH) -> list[dict]:
     try:
         rows = conn.execute(
             """
-            SELECT posts.date, extracted.count_or_level,
+            SELECT COALESCE(extracted.catch_date, posts.date) AS catch_date,
+                   extracted.count_or_level,
                    conditions.tide_type, conditions.water_temp, conditions.air_temp_max
             FROM extracted
             JOIN posts ON posts.id = extracted.post_id
-            LEFT JOIN conditions ON conditions.date = posts.date
+            LEFT JOIN conditions
+                ON conditions.date = COALESCE(extracted.catch_date, posts.date)
             WHERE extracted.species = ?
             """,
             (species,),
@@ -124,8 +127,8 @@ def recommend_next_days(species: str, days: int = 7, db_path=DB_PATH,
             "enough_data": False,
             "message": (
                 f"{species}の釣果記録が現時点で{len(history)}件しかなく、"
-                "傾向を出すにはまだ足りません。実データの収集とPhase 5のAI抽出が"
-                "進んでから使える機能です。"
+                "傾向を出すにはまだ足りません。実データの収集とPhase 5のAI抽出"
+                "(extract_catches.py)を実行してから使える機能です。"
             ),
             "candidates": [],
         }

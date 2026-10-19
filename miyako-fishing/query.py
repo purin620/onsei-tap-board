@@ -9,7 +9,7 @@ from init_db import DB_PATH
 JOIN_SQL = """
 SELECT
     b.name AS boat_name,
-    p.date,
+    COALESCE(e.catch_date, p.date) AS date,
     e.species,
     e.count_or_level,
     e.size_cm,
@@ -22,8 +22,8 @@ SELECT
 FROM posts p
 JOIN boats b ON b.id = p.boat_id
 JOIN extracted e ON e.post_id = p.id
-LEFT JOIN conditions c ON c.date = p.date
-ORDER BY p.date;
+LEFT JOIN conditions c ON c.date = COALESCE(e.catch_date, p.date)
+ORDER BY date;
 """
 
 

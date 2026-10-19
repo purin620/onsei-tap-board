@@ -15,7 +15,8 @@ CREATE TABLE IF NOT EXISTS posts (
     body_raw TEXT,
     image_url TEXT,
     source TEXT NOT NULL DEFAULT 'site',  -- 'site' or 'instagram'
-    source_url TEXT                  -- 元記事のURL(再取得時の重複排除キー)
+    source_url TEXT,                 -- 元記事のURL(再取得時の重複排除キー)
+    extracted_at TEXT                -- Phase 5のAI抽出を実行した日時(未処理ならNULL)
 );
 
 CREATE TABLE IF NOT EXISTS post_images (
@@ -29,7 +30,9 @@ CREATE TABLE IF NOT EXISTS extracted (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     post_id INTEGER NOT NULL REFERENCES posts(id),
     species TEXT NOT NULL,           -- 'ヒラメ' / 'イカ' / 'その他'
+    catch_date TEXT,                 -- 釣った日(YYYY-MM-DD)。NULLなら posts.date と同じ日
     count_or_level TEXT,             -- 数値(文字列) or '豊漁'/'普通'/'不漁'
+    count_basis TEXT,                -- 匹数の基準 '合計'/'トップ'/'1人あたり'(不明ならNULL)
     size_cm REAL,
     tackle_note TEXT,
     ai_confidence TEXT

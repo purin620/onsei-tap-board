@@ -12,7 +12,7 @@
 - [x] Phase 2: 気象庁/Open-Meteo等、外部API連携（下記「Phase 2について」の要確認事項あり）
 - [x] Phase 3: 4隻のサイト構造調査→1隻分のスクレイパー試作（下記「Phase 3について」の要確認事項あり）
 - [~] Phase 4: 残り3隻へ横展開（平進丸のみ実装済み。下記「Phase 4について」参照）
-- [ ] Phase 5: Claude APIでの本文構造化抽出
+- [x] Phase 5: Claude APIでの本文構造化抽出（`extract_catches.py`。実データでの実行はAPIキー設定後。下記「Phase 5について」参照）
 - [~] Phase 6: 分析・可視化ダッシュボード（`analyze_trends.py`を先行実装。下記「Phase 6について」参照）
 
 ## セットアップ (Phase 1)
@@ -46,7 +46,10 @@ python persist_posts.py 1          # ゆたか丸のカテゴリ1ページ分を
 - `boats`: 船マスタ（船名・Instagram・公式サイトURL）
 - `posts`: 各船の釣果記事（日付・タイトル・本文・アイキャッチ画像URL・取得元・元記事URL）
 - `post_images`: 1記事に複数枚含まれる写真のURL一覧（ギャラリー投稿対応、Phase 3で追加）
-- `extracted`: `posts` からAI抽出した釣果情報（魚種・匹数or段階評価・サイズ・タックル情報・信頼度メモ）
+- `extracted`: `posts` からAI抽出した釣果情報（魚種・釣った日・匹数or段階評価・匹数の基準・サイズ・タックル情報・信頼度）
+
+既存のDBに後から追加した列（`posts.extracted_at`、`extracted.catch_date`/`count_basis`）は、
+`python init_db.py` を実行すると自動で追加される（`init_db.migrate()`）。
 - `conditions`: 日付ごとの自然条件（潮回り・満潮干潮時刻・水温・気温・風）
 
 `seed_sample_data.py` のサンプル釣果・自然条件データは動作確認用のダミー値であり、
@@ -172,6 +175,38 @@ playwright install chromium         # 初回のみ必要
 python persist_heishinmaru.py       # 平進丸のページを取得してDBへ保存(潮回りもconditionsへ反映)
 ```
 
+## Phase 5について（釣果文のAI読み取り）
+
+`extract_catches.py`が本体（2026-10-19実装）。`posts`の本文をClaude API（`claude-opus-5-5`）に
+1件ずつ渡し、決まった形（JSONスキーマ）で次の項目を返させて`extracted`に保存する。
+
+- 魚種（イカ類はすべて「イカ」にまとめ、元の名前はメモに残す）
+- 釣った日（`catch_date`）：平進丸のように1つの更新に複数日分が書かれていても日ごとに分ける。
+  分析（`analyze_trends.py`・`query.py`）は投稿日ではなくこの日付で自然条件と結び付ける
+- 匹数、または匹数が無い場合は 豊漁/普通/不漁
+- 匹数の基準（`count_basis`）：船中合計／トップ（竿頭）／1人あたり。基準が混ざると単純比較できないため記録している
+- 最大サイズ、仕掛け等のメモ、読み取りの確かさ（high/medium/low）
+
+処理済みの記事には`posts.extracted_at`が入り、再実行しても二重に抽出しない。
+釣果の無い記事（休船のお知らせ等）も処理済みになる。APIエラーや拒否で失敗した記事は
+処理済みにならず、次回また対象になる。Phase 1で手入力したサンプルは対象外。
+
+**実行に必要なもの：** AnthropicのAPIキー（環境変数`ANTHROPIC_API_KEY`）。記事1件につきAPIを1回呼ぶので
+料金がかかる。まず`--limit 3 --dry-run`で数件だけ試し、結果を目で確認してから本番実行するのがおすすめ。
+
+**未検証：** このセッションにはAPIキーが無いため、実際のAPI応答ではまだ動かしていない
+（リクエストの組み立てとDB保存・再実行時の挙動は`test_extract_catches.py`でオフライン検証済み）。
+
+### 実行例
+
+```bash
+python test_extract_catches.py                 # オフラインでの検証(APIは呼ばない)
+export ANTHROPIC_API_KEY=...                   # 初回のみ
+python extract_catches.py --limit 3 --dry-run  # 3件だけ試す(DBには保存しない)
+python extract_catches.py                      # 未処理の記事をすべて抽出して保存
+python analyze_trends.py                       # 抽出結果で傾向分析
+```
+
 ## Phase 6について（傾向分析・釣行日の提案、先行実装）
 
 ユーザーから「釣果のいい日の傾向をまとめて、次に釣りに行くならいつがいいか提案してほしい」
@@ -191,8 +226,8 @@ python persist_heishinmaru.py       # 平進丸のページを取得してDBへ�
 
 ### 重要な制約（今の時点ではまだ実用的な提案はできない）
 
-- `extracted`テーブルの中身はPhase 1で手入力したごく少数のダミーデータしかなく
-  (2026-09-21時点でヒラメ2件・イカ1件)、統計的に意味のある傾向はまだ出せない。
+- `extracted`テーブルの中身は、Phase 5の`extract_catches.py`を実データに対して実行するまでは
+  Phase 1で手入力したごく少数のダミーデータしかなく(2026-09-21時点でヒラメ2件・イカ1件)、統計的に意味のある傾向はまだ出せない。
   そのため`MIN_SAMPLES_FOR_TENDENCY`(5件)未満のときは`enough_data: false`を返し、
   断定的な提案をしないようにしてある。実際に`python analyze_trends.py`を実行すると
   「データが足りません」という結果になる。
@@ -213,5 +248,8 @@ python analyze_trends.py            # 今のDBの中身で傾向・提案を試�
 
 ## 次にやること
 
-こうしん丸・隆勝丸の実際のページ構造を確認し、それぞれ専用のスクレイパーを実装する。
-あわせて、Phase 5(AI抽出)を実装してデータ件数を増やし、Phase 6の分析を実用的にしていく。
+1. APIキーを設定し、ゆたか丸・平進丸の実データを取得（`persist_posts.py`・`persist_heishinmaru.py`）してから
+   `extract_catches.py --limit 3 --dry-run`で読み取り結果を確認し、問題なければ全件抽出する。
+2. こうしん丸・隆勝丸の実際のページ構造を確認し（ブラウザの「検証」画面のスクリーンショット）、
+   それぞれ専用のスクレイパーを実装する。
+3. データが貯まったら`analyze_trends.py`で傾向分析・釣行日の提案を実用化する。
