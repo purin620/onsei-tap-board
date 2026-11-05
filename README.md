@@ -18,3 +18,9 @@
 1. このリポジトリの Settings → Pages を開く
 2. Source を `Deploy from a branch`、Branch を `main` / `/(root)` に設定
 3. 数分後に `https://<ユーザー名>.github.io/<リポジトリ名>/` でアクセスできるようになります
+
+## ことばでつたえよう（五十音表の読み上げ）
+
+`kotoba/index.html` は、紙の五十音表と同じ並び（右から あ行）の文字をタップすると1文字ずつ読み上げるページです。「あいう」「がぎぐ」「きゃ・っ」の3つの表を下のタブで切り替えます。右下の⚙を1.5秒長押しすると先生用の設定（速さ・声・「よむ」ボタン）が開きます。
+
+公開URL: `https://purin620.github.io/onsei-tap-board/kotoba/`

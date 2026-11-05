@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-title" content="ことば">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>html{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
+<title>ことばでつたえよう</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@700;900&display=swap">
+<style>
+/* 1画面アプリ：上に「つたえる文」、中央に紙の五十音表と同じ並び（右から あ行）、下に表のきりかえ */
+:root {
+  --bg: #e6f4fb;          /* 水色の台紙 */
+  --board: #ffffff;
+  --ink: #1d2433;
+  --sub: #4f5d73;
+  --pink: #f4a7c3;
+  --yellow: #f6d35b;
+  --green: #8fd17f;
+  --blue: #8cc8ef;
+  --press: #ffe58a;
+  --accent: #2a62b8;
+  --danger: #c8434b;
+  --kana: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "ヒラギノ丸ゴ ProN", "BIZ UDGothic", "Hiragino Sans", sans-serif;
+  color-scheme: light;
+}
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--kana);
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-user-select: none; user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.app {
+  height: 100%;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 1.2vmin;
+  padding-block: 1.2vmin;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+/* つたえる文 */
+.say {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1.2vmin;
+  align-items: stretch;
+}
+.line {
+  background: var(--board);
+  border: 3px solid var(--blue);
+  border-radius: 2vmin;
+  min-height: 11vmin;
+  display: flex; align-items: center;
+  padding: 0 2.4vmin;
+  font-size: 7.5vmin; font-weight: 900; letter-spacing: .08em;
+  overflow-x: auto; white-space: nowrap;
+  min-width: 0;
+}
+.line .ph { color: #9fb3c8; font-size: 4.5vmin; letter-spacing: .1em; }
+.tools { display: flex; gap: 1.2vmin; }
+.tool {
+  font: 900 3.4vmin/1.1 var(--kana);
+  border: 3px solid var(--sub); background: var(--board); color: var(--ink);
+  border-radius: 2vmin; padding: 0 2.2vmin; min-width: 13vmin;
+}
+.tool.speak { border-color: var(--accent); color: var(--accent); }
+.tool.clear { border-color: var(--danger); color: var(--danger); }
+.tool:active { background: var(--press); }
+
+/* 表 */
+.board {
+  background: var(--board);
+  border-radius: 2.4vmin;
+  border: 4px solid var(--blue);
+  padding: 1.2vmin;
+  min-height: 0;
+  display: grid;
+  gap: 1vmin;
+}
+[hidden] { display: none !important; }
+.k {
+  font: 900 7.2vmin/1 var(--kana);
+  color: var(--ink);
+  background: #fff;
+  border: 0.8vmin solid var(--c, var(--pink));
+  border-radius: 1.6vmin;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0; min-width: 0; min-height: 0;
+  transition: transform .08s ease;
+}
+.k:active, .k.on { background: var(--press); transform: scale(.94); }
+.k.blank { background: #eaf4fb; border-color: #d6e9f6; }
+#t-yoon .k { font-size: 4.4vmin; white-space: nowrap; letter-spacing: -0.04em; }
+#t-yoon .k.small { font-size: 6.4vmin; flex-direction: column; gap: .6vmin; }
+#t-yoon .k .cap { font-size: 2.4vmin; color: var(--sub); }
+
+/* 表のきりかえ */
+.tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.2vmin; }
+.tab {
+  font: 900 4.6vmin/1 var(--kana);
+  padding: 1.6vmin 0;
+  border-radius: 2vmin;
+  border: 3px solid var(--blue);
+  background: #fff; color: var(--sub);
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* せんせい用（ながおし） */
+.gear {
+  position: fixed;
+  right: calc(4px + env(safe-area-inset-right, 0px));
+  bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+  width: 28px; height: 28px; border-radius: 50%;
+  border: 0; background: transparent; color: #b7c9da; font-size: 14px;
+}
+.panel {
+  position: fixed; inset: 0; background: rgba(29,36,51,.45);
+  display: flex; align-items: center; justify-content: center; z-index: 20;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.sheet {
+  background: #fff; color: var(--ink); border-radius: 16px; padding: 24px;
+  width: min(520px, 100%); box-sizing: border-box;
+  font: 700 16px/1.6 "Hiragino Sans", "BIZ UDGothic", sans-serif;
+  display: grid; gap: 16px;
+}
+.sheet h2 { margin: 0; font-size: 20px; }
+.sheet label { display: grid; gap: 6px; }
+.sheet select, .sheet button { font: inherit; padding: 10px 12px; border-radius: 10px; border: 2px solid var(--blue); background: #fff; color: var(--ink); }
+.sheet .note { font-weight: 400; color: var(--sub); font-size: 14px; margin: 0; }
+.sheet .close { background: var(--accent); border-color: var(--accent); color: #fff; }
+.warn {
+  position: fixed; left: 50%; top: calc(8px + env(safe-area-inset-top, 0px)); transform: translateX(-50%);
+  background: #fff3c4; color: var(--ink); border: 2px solid var(--yellow);
+  padding: 8px 16px; border-radius: 12px; font: 700 14px/1.4 "Hiragino Sans", sans-serif; z-index: 15;
+  max-width: calc(100% - 32px);
+}
+button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .k { transition: none; } }
+@media (orientation: portrait) {
+  .k { font-size: 6vmin; }
+  #t-yoon .k { font-size: 3.6vmin; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="say">
+    <div class="line" id="line" aria-live="polite"><span class="ph">もじを おしてね</span></div>
+    <div class="tools">
+      <button class="tool" id="back" type="button">1もじ<br>けす</button>
+      <button class="tool clear" id="clear" type="button">ぜんぶ<br>けす</button>
+      <button class="tool speak" id="speakAll" type="button">よむ</button>
+    </div>
+  </div>
+
+  <div class="board" id="t-seion" role="tabpanel"></div>
+  <div class="board" id="t-daku" role="tabpanel" hidden></div>
+  <div class="board" id="t-yoon" role="tabpanel" hidden></div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" type="button" role="tab" data-t="t-seion" aria-selected="true">あいう</button>
+    <button class="tab" type="button" role="tab" data-t="t-daku" aria-selected="false">がぎぐ</button>
+    <button class="tab" type="button" role="tab" data-t="t-yoon" aria-selected="false">きゃ・っ</button>
+  </div>
+</div>
+
+<button class="gear" id="gear" type="button" aria-label="せんせい用のせってい（ながおし）">⚙</button>
+
+<div class="panel" id="panel" hidden>
+  <div class="sheet">
+    <h2>せんせい用のせってい</h2>
+    <label>読み上げの速さ
+      <select id="rate">
+        <option value="0.6">とても ゆっくり</option>
+        <option value="0.8">ゆっくり</option>
+        <option value="1">ふつう</option>
+      </select>
+    </label>
+    <label>声
+      <select id="voice"><option value="">自動（日本語）</option></select>
+    </label>
+    <label>「よむ」ボタン（文ぜんぶの読み上げ）
+      <select id="showSpeak">
+        <option value="1">表示する</option>
+        <option value="0">表示しない</option>
+      </select>
+    </label>
+    <button type="button" id="test">ためしに「あ」を読む</button>
+    <p class="note">このせっていは、このiPadの中だけに保存されます。右下の⚙を長押し（1.5秒）すると開きます。</p>
+    <button type="button" class="close" id="closePanel">とじる</button>
+  </div>
+</div>
+<div class="warn" id="warn" hidden></div>
+
+<script>
+(function () {
+  // 紙の表と同じく、左から わ…あ（右はしが あ行）。"" は空きマス。
+  var SEION = [
+    ["わ","","","を","ん"],
+    ["ら","り","る","れ","ろ"],
+    ["や","","ゆ","","よ"],
+    ["ま","み","む","め","も"],
+    ["は","ひ","ふ","へ","ほ"],
+    ["な","に","ぬ","ね","の"],
+    ["た","ち","つ","て","と"],
+    ["さ","し","す","せ","そ"],
+    ["か","き","く","け","こ"],
+    ["あ","い","う","え","お"]
+  ];
+  var DAKU = [
+    ["ぱ","ぴ","ぷ","ぺ","ぽ"],
+    ["ば","び","ぶ","べ","ぼ"],
+    ["だ","ぢ","づ","で","ど"],
+    ["ざ","じ","ず","ぜ","ぞ"],
+    ["が","ぎ","ぐ","げ","ご"]
+  ];
+  var YOON = [
+    ["っ","ー",""],
+    ["ぴゃ","ぴゅ","ぴょ"],
+    ["びゃ","びゅ","びょ"],
+    ["じゃ","じゅ","じょ"],
+    ["ぎゃ","ぎゅ","ぎょ"],
+    ["りゃ","りゅ","りょ"],
+    ["みゃ","みゅ","みょ"],
+    ["ひゃ","ひゅ","ひょ"],
+    ["にゃ","にゅ","にょ"],
+    ["ちゃ","ちゅ","ちょ"],
+    ["しゃ","しゅ","しょ"],
+    ["きゃ","きゅ","きょ"]
+  ];
+  // 1文字だけだと読みにくいものの読ませ方
+  var SAY = { "っ": "ちいさい つ", "ー": "のばす", "を": "を", "ぢ": "ぢ", "づ": "づ" };
+  var COLORS = ["var(--pink)", "var(--yellow)", "var(--green)", "var(--blue)"];
+
+  function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
+
+  var text = [];
+  var lineEl = document.getElementById("line");
+
+  function render() {
+    if (!text.length) { lineEl.innerHTML = '<span class="ph">もじを おしてね</span>'; return; }
+    lineEl.textContent = text.join("");
+    lineEl.scrollLeft = lineEl.scrollWidth;
+  }
+
+  // ---- 読み上げ ----
+  var synth = window.speechSynthesis;
+  var voices = [];
+  function loadVoices() {
+    if (!synth) return;
+    voices = synth.getVoices().filter(function (v) { return /^ja/i.test(v.lang); });
+    var sel = document.getElementById("voice");
+    var keep = store("kotoba.voice") || "";
+    sel.innerHTML = '<option value="">自動（日本語）</option>';
+    voices.forEach(function (v) {
+      var o = document.createElement("option"); o.value = v.name; o.textContent = v.name; sel.appendChild(o);
+    });
+    sel.value = keep;
+  }
+  if (synth) { loadVoices(); synth.onvoiceschanged = loadVoices; }
+
+  function speak(s) {
+    if (!synth || !window.SpeechSynthesisUtterance) { showWarn("このブラウザでは音声が出せません。"); return; }
+    synth.cancel();
+    var u = new SpeechSynthesisUtterance(s);
+    u.lang = "ja-JP";
+    u.rate = parseFloat(store("kotoba.rate") || "0.8");
+    var name = store("kotoba.voice");
+    var v = voices.filter(function (x) { return x.name === name; })[0] || voices[0];
+    if (v) u.voice = v;
+    synth.speak(u);
+    if (synth.paused) synth.resume();
+  }
+
+  // ---- 表をつくる ----
+  function build(id, cols, cls) {
+    var el = document.getElementById(id);
+    var rows = cols[0].length;
+    el.style.gridTemplateColumns = "repeat(" + cols.length + ", 1fr)";
+    el.style.gridTemplateRows = "repeat(" + rows + ", 1fr)";
+    for (var r = 0; r < rows; r++) {
+      for (var c = 0; c < cols.length; c++) {
+        var ch = cols[c][r];
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "k";
+        if (!ch) { b.className += " blank"; b.disabled = true; b.setAttribute("aria-hidden", "true"); }
+        else {
+          b.textContent = ch;
+          b.dataset.ch = ch;
+          if (ch === "っ") { b.className += " small"; b.innerHTML = '<span class="cap">ちいさい</span><span>っ</span>'; }
+          b.style.setProperty("--c", COLORS[(c + r) % 4]);
+        }
+        el.appendChild(b);
+      }
+    }
+  }
+  build("t-seion", SEION);
+  build("t-daku", DAKU);
+  build("t-yoon", YOON);
+
+  function press(b) {
+    var ch = b.dataset.ch;
+    text.push(ch);
+    render();
+    speak(SAY[ch] || ch);
+    b.classList.add("on");
+    setTimeout(function () { b.classList.remove("on"); }, 220);
+  }
+  document.querySelectorAll(".board").forEach(function (bd) {
+    bd.addEventListener("click", function (e) {
+      var b = e.target.closest(".k");
+      if (b && b.dataset.ch) press(b);
+    });
+  });
+
+  document.getElementById("back").addEventListener("click", function () { text.pop(); render(); });
+  document.getElementById("clear").addEventListener("click", function () { text = []; render(); });
+  document.getElementById("speakAll").addEventListener("click", function () {
+    if (text.length) speak(text.join(""));
+  });
+
+  // ---- 表のきりかえ ----
+  var tabs = document.querySelectorAll(".tab");
+  tabs.forEach(function (t) {
+    t.addEventListener("click", function () {
+      tabs.forEach(function (x) {
+        var on = x === t;
+        x.setAttribute("aria-selected", on ? "true" : "false");
+        document.getElementById(x.dataset.t).hidden = !on;
+      });
+    });
+  });
+
+  // ---- 集中のための工夫：拡大・長押しメニュー・スクロールを止める ----
+  document.addEventListener("gesturestart", function (e) { e.preventDefault(); });
+  document.addEventListener("dblclick", function (e) { e.preventDefault(); });
+  document.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+  document.addEventListener("touchmove", function (e) {
+    if (!e.target.closest(".line")) e.preventDefault();
+  }, { passive: false });
+
+  // ---- せんせい用（⚙を1.5秒ながおし） ----
+  var panel = document.getElementById("panel");
+  var gear = document.getElementById("gear");
+  var timer = null;
+  function startHold() { timer = setTimeout(function () { panel.hidden = false; }, 1500); }
+  function endHold() { clearTimeout(timer); }
+  gear.addEventListener("touchstart", startHold, { passive: true });
+  gear.addEventListener("touchend", endHold);
+  gear.addEventListener("mousedown", startHold);
+  gear.addEventListener("mouseup", endHold);
+  gear.addEventListener("mouseleave", endHold);
+
+  var rate = document.getElementById("rate");
+  var voiceSel = document.getElementById("voice");
+  var showSpeak = document.getElementById("showSpeak");
+  var speakBtn = document.getElementById("speakAll");
+  rate.value = store("kotoba.rate") || "0.8";
+  showSpeak.value = store("kotoba.showSpeak") || "1";
+  speakBtn.hidden = showSpeak.value === "0";
+  rate.addEventListener("change", function () { store("kotoba.rate", rate.value); });
+  voiceSel.addEventListener("change", function () { store("kotoba.voice", voiceSel.value); });
+  showSpeak.addEventListener("change", function () { store("kotoba.showSpeak", showSpeak.value); speakBtn.hidden = showSpeak.value === "0"; });
+  document.getElementById("test").addEventListener("click", function () { speak("あ"); });
+  document.getElementById("closePanel").addEventListener("click", function () { panel.hidden = true; });
+
+  var warn = document.getElementById("warn");
+  function showWarn(m) { warn.textContent = m; warn.hidden = false; setTimeout(function () { warn.hidden = true; }, 4000); }
+})();
+</script>
+</body>
+</html>
