@@ -286,6 +286,7 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
     if (v) u.voice = v;
     synth.speak(u);
     if (synth.paused) synth.resume();
+    return u;
   }
 
   // ---- 表をつくる ----
@@ -317,7 +318,7 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
 
   function press(b) {
     var ch = b.dataset.ch;
-    text.push(ch);
+    text = text.concat([ch]);
     render();
     speak(SAY[ch] || ch);
     b.classList.add("on");
@@ -330,10 +331,23 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
     });
   });
 
-  document.getElementById("back").addEventListener("click", function () { text.pop(); render(); });
+  document.getElementById("back").addEventListener("click", function () { text = text.slice(0, -1); render(); });
   document.getElementById("clear").addEventListener("click", function () { text = []; render(); });
   document.getElementById("speakAll").addEventListener("click", function () {
-    if (text.length) speak(text.join(""));
+    if (!text.length) return;
+    // 読み終わったら文を消す（読んでいる間は相手が文字を見られるように残す）
+    var said = text;
+    var done = false;
+    function clearSaid() {
+      if (done) return;
+      done = true;
+      if (text === said) { text = []; render(); }
+    }
+    var u = speak(said.join(""));
+    if (!u) { clearSaid(); return; }
+    u.onend = clearSaid;
+    u.onerror = clearSaid;
+    setTimeout(clearSaid, 1500 + said.length * 700);
   });
 
   // ---- 表のきりかえ ----
