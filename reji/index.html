@@ -38,7 +38,7 @@ h2{font-size:clamp(28px,5vw,44px);margin:4px 0;text-align:center}
 .num{font-variant-numeric:tabular-nums}
 
 /* しなもの */
-.products{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.products{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 .pbtn{background:var(--card);border-radius:24px;padding:14px 8px 16px;display:flex;flex-direction:column;align-items:center;gap:6px;
   border:4px solid var(--c);box-shadow:0 6px 0 var(--c);transition:transform .08s}
 .pbtn:active{transform:translateY(5px);box-shadow:0 1px 0 var(--c)}
@@ -176,7 +176,7 @@ h2{font-size:clamp(22px,5vh,40px);margin:0}
 }
 @media (max-width:760px){
   .board,.paygrid,.sumtop{grid-template-columns:1fr}
-  .products{gap:8px;grid-template-columns:repeat(2,1fr)}
+  .products{gap:8px}
   .pbtn{border-radius:18px;padding:10px 4px}
   .pcoin svg{width:30px;height:30px}
   .coins svg.coin{width:44px;height:44px}.coins svg.bill{width:88px;height:44px}
@@ -277,13 +277,12 @@ h2{font-size:clamp(22px,5vh,40px);margin:0}
 <script>
 (function(){
 const KEY='hanbaikai-reji-v1';
-const DEF={prices:{coaster:50,resin:30,imo:200,jaga:100},voice:true,sales:[],v:2};
+const DEF={prices:{coaster:50,resin:30,imo:200},voice:true,sales:[],v:2};
 let st=load();
 const PRODUCTS=[
   {id:'coaster',name:'コースター',color:'var(--coaster)'},
   {id:'resin',name:'レジン',color:'var(--resin)'},
-  {id:'imo',name:'さつまいも',color:'var(--imo)'},
-  {id:'jaga',name:'じゃがいも',color:'var(--jaga)'}
+  {id:'imo',name:'さつまいも',color:'var(--imo)'}
 ];
 const emptyCart=()=>Object.fromEntries(PRODUCTS.map(p=>[p.id,0]));
 let cart=emptyCart();
