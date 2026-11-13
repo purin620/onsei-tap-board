@@ -207,7 +207,20 @@ h2{font-size:clamp(22px,5vh,40px);margin:0}
     </div>
     <div class="actions">
       <button class="btn ghost" id="clearCart">ぜんぶ けす</button>
-      <button class="btn go" id="toPay" disabled>おかね を もらった</button>
+      <button class="btn go" id="toPay" disabled>ごうけい は？</button>
+    </div>
+  </section>
+
+  <!-- 1.5 ごうけい -->
+  <section id="sTotal" class="wrap" style="padding:0" hidden>
+    <div class="result pop" id="totalBox">
+      <div class="chg">ごうけい は <span class="num" id="totalBig">0</span>えん</div>
+      <div class="coins xl" id="totalBigCoins"></div>
+      <button class="tbtn" id="totalSay">もういちど きく</button>
+    </div>
+    <div class="actions">
+      <button class="btn ghost" id="totalBack">もどる</button>
+      <button class="btn go" id="totalNext">おかね を もらう</button>
     </div>
   </section>
 
@@ -376,7 +389,7 @@ function say(t){
 }
 
 /* ---------- がめん ---------- */
-function show(id){['sSell','sPay','sResult','sSummary'].forEach(s=>$(s).hidden=s!==id);$('toSummary').hidden=id==='sSummary';window.scrollTo(0,0);}
+function show(id){['sSell','sTotal','sPay','sResult','sSummary'].forEach(s=>$(s).hidden=s!==id);$('toSummary').hidden=id==='sSummary';window.scrollTo(0,0);}
 const cartTotal=()=>PRODUCTS.reduce((a,p)=>a+cart[p.id]*price(p.id),0);
 
 function renderProducts(){
@@ -404,7 +417,12 @@ $('cart').addEventListener('click',e=>{
   cart[b.dataset.minus]=Math.max(0,cart[b.dataset.minus]-1);renderSell();
 });
 $('clearCart').onclick=()=>{cart=emptyCart();renderSell();};
-$('toPay').onclick=()=>{paid='';renderPay();show('sPay');say(`ごうけい ${cartTotal()}円。もらったおかねは？`);};
+const sayTotal=()=>say(`ごうけいは ${cartTotal()}円です`);
+$('toPay').onclick=()=>{const t=cartTotal();$('totalBig').textContent=yen(t);$('totalBigCoins').innerHTML=moneyRow(t);
+  const b=$('totalBox');b.classList.remove('pop');void b.offsetWidth;b.classList.add('pop');show('sTotal');sayTotal();};
+$('totalSay').onclick=sayTotal;
+$('totalBack').onclick=()=>show('sSell');
+$('totalNext').onclick=()=>{paid='';renderPay();show('sPay');say('もらったおかねは？');};
 
 /* もらったおかね */
 const KEYS=['1','2','3','4','5','6','7','8','9','00','0','bs'];
