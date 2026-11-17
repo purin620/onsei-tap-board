@@ -558,7 +558,7 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
       Promise.all([cloud.db.collection("mondai").get(), cloud.assets.list().catch(function () { return null; })]).then(function (r) {
         var qs = r[0], urls = {};
         if (r[1] && r[1].assets) r[1].assets.forEach(function (a) { urls[a.id] = a.url; });
-        var out = qs.docs.map(function (d) { var v = d.data(); return { id: d.id, asset: v.asset, img: urls[v.asset] || ("/_blob/" + v.asset), kotae: v.kotae, namae: v.namae, t: v.t || 0 }; });
+        var out = qs.docs.map(function (d) { var v = d.data(); return { id: d.id, asset: v.asset, img: v.img || urls[v.asset] || ("/_blob/" + v.asset), kotae: v.kotae, namae: v.namae, t: v.t || 0 }; });
         out.sort(function (a, b) { return a.t - b.t; });
         cb(out);
       }).catch(function () { showWarn("追加した問題を読みこめませんでした。"); cb([]); });
@@ -574,9 +574,10 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
   }
   function putMine(item, cb) {
     if (cloud) {
+      // 写真は問題といっしょに保存する（iPadで画像のリンクが開けないことがあるため）
       var blob = toBlob(item.img);
-      cloud.assets.upload(blob, { type: blob.type }).then(function (up) {
-        return cloud.db.collection("mondai").doc().set({ asset: up.id, kotae: item.kotae, namae: item.namae, t: Date.now() });
+      cloud.assets.upload(blob, { type: blob.type }).then(function (up) { return up.id; }, function () { return ""; }).then(function (assetId) {
+        return cloud.db.collection("mondai").doc().set({ img: item.img, asset: assetId, kotae: item.kotae, namae: item.namae, t: Date.now() });
       }).then(cb).catch(function () { showWarn("保存できませんでした。もう一度ためしてください。"); });
       return;
     }
@@ -593,7 +594,7 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
       cloud.db.collection("mondai").doc(m.id).delete().then(function () {
         var v = videos["m" + m.id];
         if (v) { cloud.db.collection("douga").doc("m" + m.id).delete().catch(function () {}); cloud.assets.delete(v.asset).catch(function () {}); }
-        return cloud.assets.delete(m.asset).catch(function () {});
+        return m.asset ? cloud.assets.delete(m.asset).catch(function () {}) : null;
       }).then(cb).catch(function () { showWarn("けせませんでした。"); });
       return;
     }
@@ -952,11 +953,11 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
     r.onload = function () {
       var img = new Image();
       img.onload = function () {
-        var max = 800, w = img.width, h = img.height, s = Math.min(1, max / Math.max(w, h));
+        var max = 640, w = img.width, h = img.height, s = Math.min(1, max / Math.max(w, h));
         var cv = document.createElement("canvas");
         cv.width = Math.round(w * s); cv.height = Math.round(h * s);
         cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
-        cb(cv.toDataURL("image/jpeg", 0.85));
+        cb(cv.toDataURL("image/jpeg", 0.8));
       };
       img.onerror = function () { showWarn("この写真は読みこめませんでした。"); };
       img.src = r.result;
