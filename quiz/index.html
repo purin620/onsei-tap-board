@@ -154,6 +154,23 @@ body {
   background: var(--accent); color: #fff; box-shadow: 0 1vmin 0 #1b4380;
 }
 .next:active { transform: translateY(1vmin); box-shadow: none; }
+/* スタンプ */
+.stamps { display: flex; flex-wrap: wrap; justify-content: center; gap: 1.6vmin; max-width: 80vw; }
+.stamp { width: 12vmin; height: 12vmin; }
+.stamp.big { width: 30vmin; height: 30vmin; animation: stampIn .5s cubic-bezier(.2, 1.6, .4, 1) both; }
+@keyframes stampIn { from { transform: scale(2.2) rotate(-25deg); opacity: 0; } to { transform: scale(1) rotate(-8deg); opacity: 1; } }
+.btnrow { display: flex; gap: 3vmin; flex-wrap: wrap; justify-content: center; }
+.next.sub { background: #fff; color: var(--accent); border: 4px solid var(--accent); box-shadow: none; }
+.mystamps { display: flex; justify-content: center; gap: .6vmin; min-height: 5vmin; flex-wrap: wrap; }
+.mystamps .stamp { width: 5vmin; height: 5vmin; }
+/* どうが */
+.video { position: fixed; inset: 0; z-index: 12; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2vmin;
+  padding: 2vmin max(16px, env(safe-area-inset-right, 0px)) 2vmin max(16px, env(safe-area-inset-left, 0px)); }
+.video video { max-width: 100%; max-height: 80vh; background: #000; }
+.watch { background: var(--ok); box-shadow: 0 1vmin 0 #b9343e; }
+.vbtns { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.vbtns button { padding: 6px 10px; }
+.myitem .vid { border-color: var(--green); }
 .confetti { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 11; }
 .confetti i { position: absolute; top: -4vmin; width: 2.4vmin; height: 3.6vmin; border-radius: .6vmin; animation: fall 2.4s linear forwards; }
 @keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
@@ -181,7 +198,7 @@ body {
 .sheet .note { font-weight: 400; color: var(--sub); font-size: 14px; margin: 0; }
 .sheet .close { background: var(--accent); border-color: var(--accent); color: #fff; }
 .mylist { display: grid; gap: 8px; }
-.myitem { display: grid; grid-template-columns: 64px 1fr auto; gap: 10px; align-items: center; border: 2px solid #e1ecf5; border-radius: 10px; padding: 6px; }
+.myitem { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 10px; align-items: center; border: 2px solid #e1ecf5; border-radius: 10px; padding: 6px; }
 .myitem img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; }
 .myitem.off img, .myitem.off div { opacity: .4; }
 .myitem .undo { border-color: var(--accent); color: var(--accent); padding: 6px 10px; }
@@ -221,6 +238,7 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
     <div class="photo"><img id="photo" alt="もんだいの しゃしん"></div>
     <p class="hint" id="hint" hidden></p>
     <div class="dots" id="dots"></div>
+    <div class="mystamps" id="mystamps" aria-label="もらった スタンプ"></div>
     <button class="answer" id="answer" type="button">こたえる</button>
   </section>
 
@@ -254,7 +272,10 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
     </svg>
     <p class="big">せいかい！</p>
     <p class="mid" id="okName"></p>
-    <button class="next" id="next" type="button">つぎへ ▶</button>
+    <div class="btnrow">
+      <button class="next watch" id="watch" type="button" hidden>▶ どうがを みる</button>
+      <button class="next" id="next" type="button">つぎへ ▶</button>
+    </div>
   </div>
 </div>
 
@@ -267,19 +288,34 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
   </div>
 </div>
 
-<!-- ぜんぶおわり -->
+<!-- スタンプ -->
+<div class="result ok" id="stampScr" hidden>
+  <div class="rbox">
+    <div id="bigStamp"></div>
+    <p class="big" id="stampTitle">スタンプ ゲット！</p>
+    <p class="mid" id="stampSub"></p>
+    <div class="stamps" id="stampRow"></div>
+    <div class="btnrow">
+      <button class="next" id="owari" type="button">おしまい</button>
+      <button class="next sub" id="tsuzuku" type="button">つづける ▶</button>
+    </div>
+  </div>
+</div>
+
+<!-- おしまい -->
 <div class="result ok" id="fin" hidden>
   <div class="rbox">
-    <svg class="hana" viewBox="0 0 200 200" aria-hidden="true">
-      <g fill="none" stroke="#e8505b" stroke-width="10" stroke-linecap="round">
-        <circle cx="100" cy="100" r="40"/>
-        <path d="M100 30a30 30 0 0 1 49 20a30 30 0 0 1 21 50a30 30 0 0 1-21 50a30 30 0 0 1-49 20a30 30 0 0 1-49-20a30 30 0 0 1-21-50a30 30 0 0 1 21-50a30 30 0 0 1 49-20z"/>
-      </g>
-    </svg>
-    <p class="big">ぜんぶ できたね！</p>
-    <p class="mid">すごい！</p>
-    <button class="next" id="again" type="button">もういちど あそぶ</button>
+    <p class="big">おしまい</p>
+    <p class="mid">がんばったね！ またね</p>
+    <div class="stamps" id="finStamps"></div>
+    <button class="next sub" id="again" type="button">さいしょから</button>
   </div>
+</div>
+
+<!-- どうが -->
+<div class="video" id="videoScr" hidden>
+  <video id="vid" controls playsinline></video>
+  <button class="next" id="vidNext" type="button">つぎへ ▶</button>
 </div>
 <div class="confetti" id="confetti"></div>
 
@@ -312,6 +348,13 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
         <option value="both">ぜんぶ</option>
       </select>
     </label>
+    <label>スタンプまでの問題数
+      <select id="setSize">
+        <option value="3">3問</option>
+        <option value="5">5問</option>
+        <option value="10">10問</option>
+      </select>
+    </label>
     <label>問題のじゅんばん
       <select id="order">
         <option value="fixed">きまった じゅんばん</option>
@@ -339,7 +382,8 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
 
     <h3>問題ファイルを読み込む</h3>
     <p class="note">先生から受け取った問題ファイル（.json）を選ぶと、このiPadに問題が登録されます。写真はインターネットには送られません。</p>
-    <label>問題ファイル <input type="file" id="importFile" accept=".json,application/json"></label>
+    <label>問題ファイル <input type="file" id="vidFile" accept="video/*" hidden>
+    <input type="file" id="importFile" accept=".json,application/json"></label>
     <button type="button" id="clearMine">追加した問題を ぜんぶ けす</button>
 
     <button type="button" id="restart">さいしょから はじめる</button>
@@ -547,6 +591,8 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
   function delMine(m, cb) {
     if (cloud) {
       cloud.db.collection("mondai").doc(m.id).delete().then(function () {
+        var v = videos["m" + m.id];
+        if (v) { cloud.db.collection("douga").doc("m" + m.id).delete().catch(function () {}); cloud.assets.delete(v.asset).catch(function () {}); }
         return cloud.assets.delete(m.asset).catch(function () {});
       }).then(cb).catch(function () { showWarn("けせませんでした。"); });
       return;
@@ -574,21 +620,30 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
   }
   function baseKey(i) { return "b" + i; }
 
+  function loadVideos(cb) {
+    if (!cloud) { videos = {}; return cb(); }
+    Promise.all([cloud.db.collection("douga").get(), cloud.assets.list().catch(function () { return null; })]).then(function (r) {
+      var urls = {}; videos = {};
+      if (r[1] && r[1].assets) r[1].assets.forEach(function (a) { urls[a.id] = a.url; });
+      r[0].docs.forEach(function (d) { var v = d.data(); videos[d.id] = { asset: v.asset, url: urls[v.asset] || ("/_blob/" + v.asset) }; });
+      cb();
+    }).catch(function () { cb(); });
+  }
   function loadQuiz(focus) {
     var src = store("quiz.src2") || "both";
-    loadHidden(function () { buildQuiz(src, focus); });
+    loadHidden(function () { loadVideos(function () { buildQuiz(src, focus); }); });
   }
   function buildQuiz(src, focus) {
-    var base = (window.MONDAI || []).map(function (m) { return { img: m.shashin, kotae: m.kotae, namae: m.namae }; })
-      .filter(function (_, i) { return hidden.indexOf(baseKey(i)) < 0; });
+    var base = (window.MONDAI || []).map(function (m, i) { return { key: baseKey(i), img: m.shashin, kotae: m.kotae, namae: m.namae }; })
+      .filter(function (q) { return hidden.indexOf(q.key) < 0; });
     getMine(function (mine) {
-      mine = mine.map(function (m) { return { img: m.img, kotae: m.kotae, namae: m.namae }; });
+      mine = mine.map(function (m) { return { key: m.id != null ? "m" + m.id : "", img: m.img, kotae: m.kotae, namae: m.namae }; });
       quiz = src === "app" ? base : src === "mine" ? mine : base.concat(mine);
       if (!quiz.length) quiz = base.length ? base : mine;
       if ((store("quiz.order") || "fixed") === "random") {
         for (var i = quiz.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = quiz[i]; quiz[i] = quiz[j]; quiz[j] = t; }
       }
-      idx = 0; doneCount = 0;
+      idx = 0; doneCount = 0; stamps = 0;
       if (focus) {
         var f = quiz.map(function (q) { return q.kotae.join("、"); }).lastIndexOf(focus);
         if (f >= 0) idx = f;
@@ -597,18 +652,38 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
     });
   }
 
+  // ---- スタンプ ----
+  var STAMP_COLORS = ["#e8505b", "#f2a541", "#3d9a5b", "#2a62b8", "#b04fc4"];
+  var STAMP_SHAPES = [
+    '<path d="M50 22l8 17 19 3-14 13 4 19-17-9-17 9 4-19-14-13 19-3z" fill="#fff"/>',
+    '<path d="M50 74C30 60 24 50 24 41c0-8 6-14 13-14 6 0 10 3 13 8 3-5 7-8 13-8 7 0 13 6 13 14 0 9-6 19-26 33z" fill="#fff"/>',
+    '<g fill="#fff"><circle cx="50" cy="35" r="10"/><circle cx="64" cy="45" r="10"/><circle cx="59" cy="62" r="10"/><circle cx="41" cy="62" r="10"/><circle cx="36" cy="45" r="10"/></g><circle cx="50" cy="51" r="7" fill="#f6d35b"/>',
+    '<path d="M28 52l14 14 30-32" stroke="#fff" stroke-width="10" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
+    '<g fill="#fff"><circle cx="50" cy="50" r="10"/><path d="M50 22v12M50 66v12M22 50h12M66 50h12M30 30l9 9M61 61l9 9M70 30l-9 9M39 61l-9 9" stroke="#fff" stroke-width="6" stroke-linecap="round"/></g>'
+  ];
+  function stampSvg(n, cls) {
+    var c = STAMP_COLORS[n % STAMP_COLORS.length], sh = STAMP_SHAPES[n % STAMP_SHAPES.length];
+    return '<svg class="stamp ' + (cls || "") + '" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46" fill="' + c + '"/><circle cx="50" cy="50" r="40" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4 4"/>' + sh + '</svg>';
+  }
+  var stamps = 0;
+  function setSize() { return parseInt(store("quiz.setSize") || "5", 10); }
+  function drawStamps(el) { var h = ""; for (var i = 0; i < stamps; i++) h += stampSvg(i); el.innerHTML = h; }
+
   function show() {
     var q = quiz[idx];
     text = []; render(); miss = 0; clearHint();
     openTab("t-seion");
     $("photo").src = q ? q.img : "";
+    // いまの区切り（5問など）だけ点で見せる → あと何問かわかる
+    var n = setSize(), start = Math.floor(idx / n) * n, end = Math.min(start + n, quiz.length);
     var dots = $("dots"); dots.innerHTML = "";
-    quiz.forEach(function (_, i) {
+    for (var i = start; i < end; i++) {
       var d = document.createElement("span");
       d.className = "dot" + (i < idx ? " done" : i === idx ? " now" : "");
       dots.appendChild(d);
-    });
-    ["ok", "ng", "fin"].forEach(function (id) { $(id).hidden = true; });
+    }
+    drawStamps($("mystamps"));
+    ["ok", "ng", "fin", "stampScr", "videoScr"].forEach(function (id) { $(id).hidden = true; });
   }
 
   function isRight() {
@@ -633,6 +708,7 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
     var q = quiz[idx];
     var p = PRAISE[Math.floor(Math.random() * PRAISE.length)];
     $("okName").textContent = text.join("") + "　" + p;
+    $("watch").hidden = !(q.key && videos[q.key]);
     $("ok").hidden = false;
     confetti();
     speak("せいかい！ " + p);
@@ -649,12 +725,50 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
     var n = parseInt(store("quiz.hintAfter") || "2", 10);
     if (n > 0 && miss >= n) { hintOn = true; showHint(); }
   });
-  $("next").addEventListener("click", function () {
+  function goNext() {
     idx++;
-    if (idx >= quiz.length) { $("ok").hidden = true; $("fin").hidden = false; confetti(); speak("ぜんぶ できたね！ すごい！"); return; }
+    var n = setSize();
+    if (idx % n === 0 || idx >= quiz.length) { showStamp(); return; }
     show();
+  }
+  function showStamp() {
+    stamps++;
+    var last = idx >= quiz.length;
+    var done = idx % setSize() || setSize();
+    $("ok").hidden = true; $("videoScr").hidden = true;
+    $("bigStamp").innerHTML = stampSvg(stamps - 1, "big");
+    $("stampTitle").textContent = "スタンプ ゲット！";
+    $("stampSub").textContent = done + "もん できたね！" + (last ? " ぜんぶ おわり！" : "");
+    drawStamps($("stampRow"));
+    $("tsuzuku").hidden = last;
+    $("stampScr").hidden = false;
+    confetti();
+    speak("スタンプ ゲット！ " + done + "もん できたね！");
+  }
+  $("next").addEventListener("click", goNext);
+  $("tsuzuku").addEventListener("click", function () { show(); });
+  $("owari").addEventListener("click", function () {
+    $("stampScr").hidden = true;
+    drawStamps($("finStamps"));
+    $("fin").hidden = false;
+    speak("おしまい。 がんばったね！");
   });
   $("again").addEventListener("click", function () { loadQuiz(); });
+
+  // ---- どうが ----
+  var videos = {};
+  var vid = $("vid");
+  $("watch").addEventListener("click", function () {
+    var q = quiz[idx];
+    if (!q || !videos[q.key]) return;
+    if (synth) synth.cancel();
+    vid.src = videos[q.key].url;
+    $("videoScr").hidden = false;
+    var pr = vid.play(); if (pr && pr.catch) pr.catch(function () {});
+  });
+  function closeVideo() { vid.pause(); vid.removeAttribute("src"); vid.load(); $("videoScr").hidden = true; }
+  $("vidNext").addEventListener("click", function () { closeVideo(); goNext(); });
+  vid.addEventListener("error", function () { if (!$("videoScr").hidden) showWarn("どうがを さいせいできませんでした。"); });
 
   // ---- ヒント：つぎに おす文字を光らせる ----
   function clearHint() {
@@ -720,6 +834,7 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
   }
   bindSel("src", "quiz.src2", "both", function () { loadQuiz(); });
   bindSel("order", "quiz.order", "fixed", function () { loadQuiz(); });
+  bindSel("setSize", "quiz.setSize", "5", function () { loadQuiz(); });
   bindSel("hintAfter", "quiz.hintAfter", "2");
   bindSel("rate", "quiz.rate", "0.8");
   $("voice").addEventListener("change", function () { store("quiz.voice", $("voice").value); });
@@ -763,17 +878,53 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
     });
   });
 
-  function itemRow(img, label, btnText, btnClass, onClick, dim) {
+  // どうがを つける（claude.ai で開いたときだけ）
+  var vidKey = null;
+  function pickVideo(key) { vidKey = key; $("vidFile").value = ""; $("vidFile").click(); }
+  $("vidFile").addEventListener("change", function () {
+    var f = this.files[0], key = vidKey;
+    if (!f || !key || !cloud) return;
+    if (f.size > 20 * 1024 * 1024) { showWarn("動画が大きすぎます（20MBまで）。短く切った動画にしてください。"); return; }
+    var type = /webm/.test(f.type) ? "video/webm" : "video/mp4";
+    showWarn("動画を保存しています…");
+    cloud.assets.upload(f, { type: type }).then(function (up) {
+      var old = videos[key];
+      return cloud.db.collection("douga").doc(key).set({ asset: up.id }).then(function () {
+        if (old) cloud.assets.delete(old.asset).catch(function () {});
+      });
+    }).then(function () { showWarn("動画をつけました。"); loadVideos(function () { drawMine(); }); })
+      .catch(function () { showWarn("動画を保存できませんでした。"); });
+  });
+  function delVideo(key) {
+    var v = videos[key]; if (!v || !cloud) return;
+    cloud.db.collection("douga").doc(key).delete().then(function () { return cloud.assets.delete(v.asset).catch(function () {}); })
+      .then(function () { showWarn("動画をけしました。"); loadVideos(function () { drawMine(); }); });
+  }
+  function itemRow(img, label, btnText, btnClass, onClick, dim, key) {
     var row = document.createElement("div"); row.className = "myitem" + (dim ? " off" : "");
     var im = document.createElement("img"); im.src = img; im.alt = "";
-    var tx = document.createElement("div"); tx.textContent = label;
+    var tx = document.createElement("div"); tx.textContent = label + (key && videos[key] ? "　🎬あり" : "");
+    var bs = document.createElement("div"); bs.className = "vbtns";
+    if (cloud && key) {
+      var vb = document.createElement("button"); vb.type = "button"; vb.className = "vid";
+      vb.textContent = videos[key] ? "動画をかえる" : "動画をつける";
+      vb.addEventListener("click", function () { pickVideo(key); });
+      bs.appendChild(vb);
+      if (videos[key]) {
+        var vd = document.createElement("button"); vd.type = "button"; vd.className = "del"; vd.textContent = "動画をけす";
+        var armed = false;
+        vd.addEventListener("click", function () { if (!armed) { armed = true; vd.textContent = "もう一度"; return; } delVideo(key); });
+        bs.appendChild(vd);
+      }
+    }
     var b = document.createElement("button"); b.type = "button"; b.className = btnClass; b.textContent = btnText;
     b.addEventListener("click", onClick);
-    row.appendChild(im); row.appendChild(tx); row.appendChild(b);
+    bs.appendChild(b);
+    row.appendChild(im); row.appendChild(tx); row.appendChild(bs);
     return row;
   }
   function drawMine() {
-    loadHidden(function () {
+    loadHidden(function () { loadVideos(function () {
       getMine(function (list) {
         var box = $("mylist"); box.innerHTML = "";
         (window.MONDAI || []).forEach(function (m, i) {
@@ -781,7 +932,7 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
           box.appendChild(itemRow(m.shashin, m.kotae.join("、") + (off ? "（けしてあります）" : ""), off ? "もどす" : "けす", off ? "undo" : "del", function () {
             if (off) hidden = hidden.filter(function (k) { return k !== key; }); else hidden = hidden.concat([key]);
             saveHidden(function () { drawMine(); loadQuiz(); });
-          }, off));
+          }, off, key));
         });
         list.forEach(function (m) {
           var armed = false;
@@ -789,10 +940,10 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
             var b = this;
             if (!armed) { armed = true; b.textContent = "もう一度"; setTimeout(function () { armed = false; b.textContent = "けす"; }, 3000); return; }
             delMine(m, function () { drawMine(); loadQuiz(); });
-          }));
+          }, false, "m" + m.id));
         });
       });
-    });
+    }); });
   }
 
   // 写真を小さくしてから保存（iPadの容量をつかいすぎないように）
