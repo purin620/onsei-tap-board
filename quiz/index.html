@@ -183,6 +183,8 @@ body {
 .mylist { display: grid; gap: 8px; }
 .myitem { display: grid; grid-template-columns: 64px 1fr auto; gap: 10px; align-items: center; border: 2px solid #e1ecf5; border-radius: 10px; padding: 6px; }
 .myitem img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; }
+.myitem.off img, .myitem.off div { opacity: .4; }
+.myitem .undo { border-color: var(--accent); color: var(--accent); padding: 6px 10px; }
 .myitem .del { border-color: var(--danger); color: var(--danger); padding: 6px 10px; }
 .addrow { display: grid; gap: 10px; border: 2px dashed var(--blue); border-radius: 12px; padding: 12px; }
 .warn {
@@ -298,6 +300,8 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
       </label>
       <button type="button" id="addBtn">登録する</button>
     </div>
+    <h3>問題の いちらん</h3>
+    <p class="note">はじめから入っている問題は「けす」で出なくなり、「もどす」で元にもどせます。追加した問題は「けす」を2回おすと消えます（元にもどせません）。</p>
     <div class="mylist" id="mylist"></div>
 
     <h3>せってい</h3>
@@ -507,8 +511,10 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
   }
   function getMine(cb) {
     if (cloud) {
-      cloud.db.collection("mondai").get().then(function (qs) {
-        var out = qs.docs.map(function (d) { var v = d.data(); return { id: d.id, asset: v.asset, img: "/_blob/" + v.asset, kotae: v.kotae, namae: v.namae, t: v.t || 0 }; });
+      Promise.all([cloud.db.collection("mondai").get(), cloud.assets.list().catch(function () { return null; })]).then(function (r) {
+        var qs = r[0], urls = {};
+        if (r[1] && r[1].assets) r[1].assets.forEach(function (a) { urls[a.id] = a.url; });
+        var out = qs.docs.map(function (d) { var v = d.data(); return { id: d.id, asset: v.asset, img: urls[v.asset] || ("/_blob/" + v.asset), kotae: v.kotae, namae: v.namae, t: v.t || 0 }; });
         out.sort(function (a, b) { return a.t - b.t; });
         cb(out);
       }).catch(function () { showWarn("追加した問題を読みこめませんでした。"); cb([]); });
@@ -552,17 +558,41 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
   var quiz = [], idx = 0, miss = 0, hintOn = false, doneCount = 0;
   function norm(s) { return String(s).replace(/[\s　・]/g, ""); }
 
-  function loadQuiz() {
+  // はじめから入っている問題のうち、けした（かくした）もの
+  var hidden = [];
+  function loadHidden(cb) {
+    if (cloud) {
+      cloud.db.doc("settings/kakusu").get().then(function (d) { hidden = (d.exists && d.data().list) || []; cb(); }).catch(function () { cb(); });
+      return;
+    }
+    try { hidden = JSON.parse(store("quiz.hidden") || "[]"); } catch (e) { hidden = []; }
+    cb();
+  }
+  function saveHidden(cb) {
+    if (cloud) { cloud.db.doc("settings/kakusu").set({ list: hidden }).then(cb).catch(function () { showWarn("保存できませんでした。"); }); return; }
+    store("quiz.hidden", JSON.stringify(hidden)); cb();
+  }
+  function baseKey(i) { return "b" + i; }
+
+  function loadQuiz(focus) {
     var src = store("quiz.src2") || "both";
-    var base = (window.MONDAI || []).map(function (m) { return { img: m.shashin, kotae: m.kotae, namae: m.namae }; });
+    loadHidden(function () { buildQuiz(src, focus); });
+  }
+  function buildQuiz(src, focus) {
+    var base = (window.MONDAI || []).map(function (m) { return { img: m.shashin, kotae: m.kotae, namae: m.namae }; })
+      .filter(function (_, i) { return hidden.indexOf(baseKey(i)) < 0; });
     getMine(function (mine) {
       mine = mine.map(function (m) { return { img: m.img, kotae: m.kotae, namae: m.namae }; });
       quiz = src === "app" ? base : src === "mine" ? mine : base.concat(mine);
-      if (!quiz.length) quiz = base;
+      if (!quiz.length) quiz = base.length ? base : mine;
       if ((store("quiz.order") || "fixed") === "random") {
         for (var i = quiz.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = quiz[i]; quiz[i] = quiz[j]; quiz[j] = t; }
       }
       idx = 0; doneCount = 0;
+      if (focus) {
+        var f = quiz.map(function (q) { return q.kotae.join("、"); }).lastIndexOf(focus);
+        if (f >= 0) idx = f;
+      }
       show();
     });
   }
@@ -624,7 +654,7 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
     if (idx >= quiz.length) { $("ok").hidden = true; $("fin").hidden = false; confetti(); speak("ぜんぶ できたね！ すごい！"); return; }
     show();
   });
-  $("again").addEventListener("click", loadQuiz);
+  $("again").addEventListener("click", function () { loadQuiz(); });
 
   // ---- ヒント：つぎに おす文字を光らせる ----
   function clearHint() {
@@ -688,8 +718,8 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
     el.value = store(key) || def;
     el.addEventListener("change", function () { store(key, el.value); if (onChange) onChange(); });
   }
-  bindSel("src", "quiz.src2", "both", loadQuiz);
-  bindSel("order", "quiz.order", "fixed", loadQuiz);
+  bindSel("src", "quiz.src2", "both", function () { loadQuiz(); });
+  bindSel("order", "quiz.order", "fixed", function () { loadQuiz(); });
   bindSel("hintAfter", "quiz.hintAfter", "2");
   bindSel("rate", "quiz.rate", "0.8");
   $("voice").addEventListener("change", function () { store("quiz.voice", $("voice").value); });
@@ -733,18 +763,34 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
     });
   });
 
+  function itemRow(img, label, btnText, btnClass, onClick, dim) {
+    var row = document.createElement("div"); row.className = "myitem" + (dim ? " off" : "");
+    var im = document.createElement("img"); im.src = img; im.alt = "";
+    var tx = document.createElement("div"); tx.textContent = label;
+    var b = document.createElement("button"); b.type = "button"; b.className = btnClass; b.textContent = btnText;
+    b.addEventListener("click", onClick);
+    row.appendChild(im); row.appendChild(tx); row.appendChild(b);
+    return row;
+  }
   function drawMine() {
-    getMine(function (list) {
-      var box = $("mylist"); box.innerHTML = "";
-      if (!list.length) { box.innerHTML = '<p class="note">まだ登録した問題はありません。</p>'; return; }
-      list.forEach(function (m) {
-        var row = document.createElement("div"); row.className = "myitem";
-        var im = document.createElement("img"); im.src = m.img; im.alt = "";
-        var tx = document.createElement("div"); tx.textContent = m.kotae.join("、");
-        var del = document.createElement("button"); del.type = "button"; del.className = "del"; del.textContent = "けす";
-        del.addEventListener("click", function () { delMine(m, function () { drawMine(); loadQuiz(); }); });
-        row.appendChild(im); row.appendChild(tx); row.appendChild(del);
-        box.appendChild(row);
+    loadHidden(function () {
+      getMine(function (list) {
+        var box = $("mylist"); box.innerHTML = "";
+        (window.MONDAI || []).forEach(function (m, i) {
+          var key = baseKey(i), off = hidden.indexOf(key) >= 0;
+          box.appendChild(itemRow(m.shashin, m.kotae.join("、") + (off ? "（けしてあります）" : ""), off ? "もどす" : "けす", off ? "undo" : "del", function () {
+            if (off) hidden = hidden.filter(function (k) { return k !== key; }); else hidden = hidden.concat([key]);
+            saveHidden(function () { drawMine(); loadQuiz(); });
+          }, off));
+        });
+        list.forEach(function (m) {
+          var armed = false;
+          box.appendChild(itemRow(m.img, m.kotae.join("、") + "（追加）", "けす", "del", function () {
+            var b = this;
+            if (!armed) { armed = true; b.textContent = "もう一度"; setTimeout(function () { armed = false; b.textContent = "けす"; }, 3000); return; }
+            delMine(m, function () { drawMine(); loadQuiz(); });
+          }));
+        });
       });
     });
   }
@@ -779,8 +825,8 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
       putMine({ img: dataUrl, kotae: kotae, namae: namae }, function () {
         btn.disabled = false; btn.textContent = "登録する";
         $("addFile").value = ""; $("addKotae").value = ""; $("addNamae").value = "";
-        showWarn("登録しました。");
-        drawMine(); loadQuiz();
+        showWarn("登録しました。いま 出ているのが 追加した問題です。");
+        drawMine(); panel.hidden = true; loadQuiz(kotae.join("、"));
       });
     });
   });
