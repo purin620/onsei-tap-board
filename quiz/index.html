@@ -170,6 +170,10 @@ body {
 .watch { background: var(--ok); box-shadow: 0 1vmin 0 #b9343e; }
 .vbtns { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .vbtns button { padding: 6px 10px; }
+.sheet label.check { display: flex; align-items: center; gap: 10px; }
+.sheet label.check input { width: 24px; height: 24px; }
+.myitem .sen { border-color: var(--sub); color: var(--sub); }
+.myitem .sen.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 .myitem .vid { border-color: var(--green); }
 .confetti { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 11; }
 .confetti i { position: absolute; top: -4vmin; width: 2.4vmin; height: 3.6vmin; border-radius: .6vmin; animation: fall 2.4s linear forwards; }
@@ -331,9 +335,7 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
       <label>正解の答え（ひらがな。いくつかある時は「、」で区切る）
         <input type="text" id="addKotae" placeholder="例：たなか、たなかせんせい" autocomplete="off">
       </label>
-      <label>正解のときに出す名前（空欄なら最初の答え）
-        <input type="text" id="addNamae" placeholder="例：たなか せんせい" autocomplete="off">
-      </label>
+      <label class="check"><input type="checkbox" id="addSensei"> 答え合わせで名前のあとに「せんせい」をつける</label>
       <button type="button" id="addBtn">登録する</button>
     </div>
     <h3>問題の いちらん</h3>
@@ -577,15 +579,16 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
       // 写真は問題といっしょに保存する（iPadで画像のリンクが開けないことがあるため）
       var blob = toBlob(item.img);
       cloud.assets.upload(blob, { type: blob.type }).then(function (up) { return up.id; }, function () { return ""; }).then(function (assetId) {
-        return cloud.db.collection("mondai").doc().set({ img: item.img, asset: assetId, kotae: item.kotae, namae: item.namae, t: Date.now() });
+        var ref = cloud.db.collection("mondai").doc();
+        return ref.set({ img: item.img, asset: assetId, kotae: item.kotae, namae: item.namae, t: Date.now() }).then(function () { return ref.id; });
       }).then(cb).catch(function () { showWarn("保存できませんでした。もう一度ためしてください。"); });
       return;
     }
     openDB(function (d) {
       if (!d) { showWarn("このiPadでは保存できませんでした。"); return; }
       var tx = d.transaction("mondai", "readwrite");
-      tx.objectStore("mondai").add(item);
-      tx.oncomplete = cb;
+      var req = tx.objectStore("mondai").add(item);
+      tx.oncomplete = function () { cb(req.result); };
       tx.onerror = function () { showWarn("保存できませんでした（容量がいっぱいかもしれません）。"); };
     });
   }
@@ -607,13 +610,24 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
 
   // はじめから入っている問題のうち、けした（かくした）もの
   var hidden = [];
+  // 「せんせい」をつける問題
+  var sensei = [];
   function loadHidden(cb) {
     if (cloud) {
-      cloud.db.doc("settings/kakusu").get().then(function (d) { hidden = (d.exists && d.data().list) || []; cb(); }).catch(function () { cb(); });
+      Promise.all([cloud.db.doc("settings/kakusu").get(), cloud.db.doc("settings/sensei").get()]).then(function (r) {
+        hidden = (r[0].exists && r[0].data().list) || [];
+        sensei = (r[1].exists && r[1].data().list) || [];
+        cb();
+      }).catch(function () { cb(); });
       return;
     }
     try { hidden = JSON.parse(store("quiz.hidden") || "[]"); } catch (e) { hidden = []; }
+    try { sensei = JSON.parse(store("quiz.sensei") || "[]"); } catch (e) { sensei = []; }
     cb();
+  }
+  function saveSensei(cb) {
+    if (cloud) { cloud.db.doc("settings/sensei").set({ list: sensei }).then(cb).catch(function () { showWarn("保存できませんでした。"); }); return; }
+    store("quiz.sensei", JSON.stringify(sensei)); cb();
   }
   function saveHidden(cb) {
     if (cloud) { cloud.db.doc("settings/kakusu").set({ list: hidden }).then(cb).catch(function () { showWarn("保存できませんでした。"); }); return; }
@@ -641,6 +655,7 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
       mine = mine.map(function (m) { return { key: m.id != null ? "m" + m.id : "", img: m.img, kotae: m.kotae, namae: m.namae }; });
       quiz = src === "app" ? base : src === "mine" ? mine : base.concat(mine);
       if (!quiz.length) quiz = base.length ? base : mine;
+      quiz.forEach(function (q) { q.sensei = sensei.indexOf(q.key) >= 0; });
       if ((store("quiz.order") || "fixed") === "random") {
         for (var i = quiz.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = quiz[i]; quiz[i] = quiz[j]; quiz[j] = t; }
       }
@@ -708,11 +723,12 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
   function showOK() {
     var q = quiz[idx];
     var p = PRAISE[Math.floor(Math.random() * PRAISE.length)];
-    $("okName").textContent = text.join("") + "　" + p;
+    var name = text.join("") + (q.sensei ? "せんせい" : "");
+    $("okName").textContent = name + "　" + p;
     $("watch").hidden = !(q.key && videos[q.key]);
     $("ok").hidden = false;
     confetti();
-    speak("せいかい！ " + p);
+    speak("せいかい！ " + name + "！ " + p);
     clearHint();
   }
   function showNG() {
@@ -918,6 +934,16 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
         bs.appendChild(vd);
       }
     }
+    if (key) {
+      var on = sensei.indexOf(key) >= 0;
+      var sb = document.createElement("button"); sb.type = "button"; sb.className = "sen" + (on ? " on" : "");
+      sb.textContent = on ? "せんせい ✓" : "せんせい をつける";
+      sb.addEventListener("click", function () {
+        sensei = on ? sensei.filter(function (k) { return k !== key; }) : sensei.concat([key]);
+        saveSensei(function () { drawMine(); loadQuiz(); });
+      });
+      bs.appendChild(sb);
+    }
     var b = document.createElement("button"); b.type = "button"; b.className = btnClass; b.textContent = btnText;
     b.addEventListener("click", onClick);
     bs.appendChild(b);
@@ -970,15 +996,18 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
     if (!f) { showWarn("写真をえらんでください。"); return; }
     if (!kotae.length) { showWarn("正解の答えを入れてください。"); return; }
     if (kotae.some(function (k) { return /[^ぁ-ゖー]/.test(k); })) { showWarn("答えはひらがなで入れてください。"); return; }
-    var namae = $("addNamae").value.trim() || kotae[0];
+    var namae = kotae[0], addSen = $("addSensei").checked;
     var btn = $("addBtn"); if (btn.disabled) return; btn.disabled = true; btn.textContent = "保存しています…";
     setTimeout(function () { btn.disabled = false; btn.textContent = "登録する"; }, 8000);
     shrink(f, function (dataUrl) {
-      putMine({ img: dataUrl, kotae: kotae, namae: namae }, function () {
+      putMine({ img: dataUrl, kotae: kotae, namae: namae }, function (newId) {
         btn.disabled = false; btn.textContent = "登録する";
-        $("addFile").value = ""; $("addKotae").value = ""; $("addNamae").value = "";
-        showWarn("登録しました。いま 出ているのが 追加した問題です。");
-        drawMine(); panel.hidden = true; loadQuiz(kotae.join("、"));
+        $("addFile").value = ""; $("addKotae").value = ""; $("addSensei").checked = false;
+        function done() {
+          showWarn("登録しました。いま 出ているのが 追加した問題です。");
+          drawMine(); panel.hidden = true; loadQuiz(kotae.join("、"));
+        }
+        if (addSen && newId != null) { sensei = sensei.concat(["m" + newId]); saveSensei(done); } else done();
       });
     });
   });
