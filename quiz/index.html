@@ -570,6 +570,7 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
   }
   function showNG() {
     miss++;
+    text = []; render(); // まちがえたら入力した文字を消す
     $("ng").hidden = false;
     speak("おしい！ もういちど やってみよう");
   }
