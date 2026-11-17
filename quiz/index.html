@@ -161,7 +161,7 @@ body {
 /* せんせい用 */
 .gear {
   position: fixed; right: calc(4px + env(safe-area-inset-right, 0px)); bottom: calc(4px + env(safe-area-inset-bottom, 0px));
-  width: 28px; height: 28px; border-radius: 50%; border: 0; background: transparent; color: #b7c9da; font-size: 14px; z-index: 5;
+  height: 28px; padding: 0 8px; border-radius: 14px; border: 0; background: transparent; color: #9fb3c8; font: 700 12px/28px "Hiragino Sans", sans-serif; z-index: 5;
 }
 .panel {
   position: fixed; inset: 0; background: rgba(29,36,51,.45); z-index: 20;
@@ -281,16 +281,31 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
 </div>
 <div class="confetti" id="confetti"></div>
 
-<button class="gear" id="gear" type="button" aria-label="せんせい用のせってい（ながおし）">⚙</button>
+<button class="gear" id="gear" type="button" aria-label="せんせい用のせってい（ながおし）">⚙ ながおしで せってい</button>
 
 <div class="panel" id="panel" hidden>
   <div class="sheet">
     <h2>せんせい用のせってい</h2>
+    <h3 style="border-top:0;padding-top:0;margin-top:0">問題を追加する（写真と正解の名前）</h3>
+    <p class="note" id="saveNote">写真はこのiPadの中だけに保存されます。</p>
+    <div class="addrow">
+      <label>写真 <input type="file" id="addFile" accept="image/*"></label>
+      <label>正解の答え（ひらがな。いくつかある時は「、」で区切る）
+        <input type="text" id="addKotae" placeholder="例：たなか、たなかせんせい" autocomplete="off">
+      </label>
+      <label>正解のときに出す名前（空欄なら最初の答え）
+        <input type="text" id="addNamae" placeholder="例：たなか せんせい" autocomplete="off">
+      </label>
+      <button type="button" id="addBtn">登録する</button>
+    </div>
+    <div class="mylist" id="mylist"></div>
+
+    <h3>せってい</h3>
     <label>出す問題
       <select id="src">
-        <option value="app">アプリに入っている問題</option>
-        <option value="mine">このiPadで登録した問題</option>
-        <option value="both">りょうほう</option>
+        <option value="app">はじめから入っている問題だけ</option>
+        <option value="mine">追加した問題だけ</option>
+        <option value="both">ぜんぶ</option>
       </select>
     </label>
     <label>問題のじゅんばん
@@ -318,24 +333,10 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
       <select id="voice"><option value="">自動（日本語）</option></select>
     </label>
 
-    <h3>このiPadで問題を登録する</h3>
-    <p class="note">写真はこのiPadの中だけに保存され、インターネットには送られません。ほかのiPadでは見えません。</p>
-    <div class="addrow">
-      <label>写真 <input type="file" id="addFile" accept="image/*"></label>
-      <label>正解の答え（ひらがな。いくつかある時は「、」で区切る）
-        <input type="text" id="addKotae" placeholder="例：たなか、たなかせんせい" autocomplete="off">
-      </label>
-      <label>正解のときに出す名前（空欄なら最初の答え）
-        <input type="text" id="addNamae" placeholder="例：たなか せんせい" autocomplete="off">
-      </label>
-      <button type="button" id="addBtn">登録する</button>
-    </div>
-    <div class="mylist" id="mylist"></div>
-
     <h3>問題ファイルを読み込む</h3>
     <p class="note">先生から受け取った問題ファイル（.json）を選ぶと、このiPadに問題が登録されます。写真はインターネットには送られません。</p>
     <label>問題ファイル <input type="file" id="importFile" accept=".json,application/json"></label>
-    <button type="button" id="clearMine">このiPadで登録した問題を ぜんぶ けす</button>
+    <button type="button" id="clearMine">追加した問題を ぜんぶ けす</button>
 
     <button type="button" id="restart">さいしょから はじめる</button>
     <p class="note">右下の⚙を長押し（1.5秒）すると開きます。</p>
@@ -491,7 +492,28 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
       req.onerror = function () { cb(null); };
     } catch (e) { cb(null); }
   }
+  // claude.ai の中で開いたときは、追加した問題をサーバーに保存（どの端末でも消えない）
+  var cloud = null;
+  var cloudReady = (window.claude && window.claude.use)
+    ? Promise.all([window.claude.use("db"), window.claude.use("assets")]).then(function (r) {
+        if (r[0] && r[1]) { cloud = { db: r[0], assets: r[1] }; var n = $("saveNote"); if (n) n.textContent = "追加した問題は保存され、次に開いたときも残ります。"; }
+      }).catch(function () {})
+    : Promise.resolve();
+  function toBlob(dataUrl) {
+    var m = /^data:([^;]+);base64,(.*)$/.exec(dataUrl);
+    var bin = atob(m[2]), a = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i);
+    return new Blob([a], { type: m[1] });
+  }
   function getMine(cb) {
+    if (cloud) {
+      cloud.db.collection("mondai").get().then(function (qs) {
+        var out = qs.docs.map(function (d) { var v = d.data(); return { id: d.id, asset: v.asset, img: "/_blob/" + v.asset, kotae: v.kotae, namae: v.namae, t: v.t || 0 }; });
+        out.sort(function (a, b) { return a.t - b.t; });
+        cb(out);
+      }).catch(function () { showWarn("追加した問題を読みこめませんでした。"); cb([]); });
+      return;
+    }
     openDB(function (d) {
       if (!d) return cb([]);
       var out = [];
@@ -501,6 +523,13 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
     });
   }
   function putMine(item, cb) {
+    if (cloud) {
+      var blob = toBlob(item.img);
+      cloud.assets.upload(blob, { type: blob.type }).then(function (up) {
+        return cloud.db.collection("mondai").doc().set({ asset: up.id, kotae: item.kotae, namae: item.namae, t: Date.now() });
+      }).then(cb).catch(function () { showWarn("保存できませんでした。もう一度ためしてください。"); });
+      return;
+    }
     openDB(function (d) {
       if (!d) { showWarn("このiPadでは保存できませんでした。"); return; }
       var tx = d.transaction("mondai", "readwrite");
@@ -509,8 +538,14 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
       tx.onerror = function () { showWarn("保存できませんでした（容量がいっぱいかもしれません）。"); };
     });
   }
-  function delMine(id, cb) {
-    openDB(function (d) { if (!d) return; var tx = d.transaction("mondai", "readwrite"); tx.objectStore("mondai").delete(id); tx.oncomplete = cb; });
+  function delMine(m, cb) {
+    if (cloud) {
+      cloud.db.collection("mondai").doc(m.id).delete().then(function () {
+        return cloud.assets.delete(m.asset).catch(function () {});
+      }).then(cb).catch(function () { showWarn("けせませんでした。"); });
+      return;
+    }
+    openDB(function (d) { if (!d) return; var tx = d.transaction("mondai", "readwrite"); tx.objectStore("mondai").delete(m.id); tx.oncomplete = cb; });
   }
 
   // ---- クイズ ----
@@ -518,7 +553,7 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
   function norm(s) { return String(s).replace(/[\s　・]/g, ""); }
 
   function loadQuiz() {
-    var src = store("quiz.src") || "app";
+    var src = store("quiz.src2") || "both";
     var base = (window.MONDAI || []).map(function (m) { return { img: m.shashin, kotae: m.kotae, namae: m.namae }; });
     getMine(function (mine) {
       mine = mine.map(function (m) { return { img: m.img, kotae: m.kotae, namae: m.namae }; });
@@ -653,7 +688,7 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
     el.value = store(key) || def;
     el.addEventListener("change", function () { store(key, el.value); if (onChange) onChange(); });
   }
-  bindSel("src", "quiz.src", "app", loadQuiz);
+  bindSel("src", "quiz.src2", "both", loadQuiz);
   bindSel("order", "quiz.order", "fixed", loadQuiz);
   bindSel("hintAfter", "quiz.hintAfter", "2");
   bindSel("rate", "quiz.rate", "0.8");
@@ -676,7 +711,7 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
         putMine({ img: m.img, kotae: m.kotae.map(norm), namae: m.namae || m.kotae[0] }, function () {
           if (--left === 0) {
             input.value = "";
-            store("quiz.src", "mine"); $("src").value = "mine";
+            
             showWarn(list.length + "問 登録しました。");
             drawMine(); loadQuiz();
           }
@@ -685,11 +720,16 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
     };
     r.readAsText(f);
   });
+  // まちがえて押さないように、2回押したら けす
+  var clearArmed = false;
   $("clearMine").addEventListener("click", function () {
-    openDB(function (d) {
-      if (!d) return;
-      var tx = d.transaction("mondai", "readwrite"); tx.objectStore("mondai").clear();
-      tx.oncomplete = function () { showWarn("けしました。"); drawMine(); loadQuiz(); };
+    var b = this;
+    if (!clearArmed) { clearArmed = true; b.textContent = "もう一度おすと ぜんぶ けします"; setTimeout(function () { clearArmed = false; b.textContent = "追加した問題を ぜんぶ けす"; }, 4000); return; }
+    clearArmed = false; b.textContent = "追加した問題を ぜんぶ けす";
+    getMine(function (list) {
+      var left = list.length;
+      if (!left) { showWarn("けす問題はありません。"); return; }
+      list.forEach(function (m) { delMine(m, function () { if (--left === 0) { showWarn("けしました。"); drawMine(); loadQuiz(); } }); });
     });
   });
 
@@ -702,7 +742,7 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
         var im = document.createElement("img"); im.src = m.img; im.alt = "";
         var tx = document.createElement("div"); tx.textContent = m.kotae.join("、");
         var del = document.createElement("button"); del.type = "button"; del.className = "del"; del.textContent = "けす";
-        del.addEventListener("click", function () { delMine(m.id, function () { drawMine(); loadQuiz(); }); });
+        del.addEventListener("click", function () { delMine(m, function () { drawMine(); loadQuiz(); }); });
         row.appendChild(im); row.appendChild(tx); row.appendChild(del);
         box.appendChild(row);
       });
@@ -733,8 +773,11 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
     if (!kotae.length) { showWarn("正解の答えを入れてください。"); return; }
     if (kotae.some(function (k) { return /[^ぁ-ゖー]/.test(k); })) { showWarn("答えはひらがなで入れてください。"); return; }
     var namae = $("addNamae").value.trim() || kotae[0];
+    var btn = $("addBtn"); if (btn.disabled) return; btn.disabled = true; btn.textContent = "保存しています…";
+    setTimeout(function () { btn.disabled = false; btn.textContent = "登録する"; }, 8000);
     shrink(f, function (dataUrl) {
       putMine({ img: dataUrl, kotae: kotae, namae: namae }, function () {
+        btn.disabled = false; btn.textContent = "登録する";
         $("addFile").value = ""; $("addKotae").value = ""; $("addNamae").value = "";
         showWarn("登録しました。");
         drawMine(); loadQuiz();
@@ -746,6 +789,7 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
   function showWarn(m) { warn.textContent = m; warn.hidden = false; setTimeout(function () { warn.hidden = true; }, 4000); }
 
   loadQuiz();
+  cloudReady.then(function () { if (cloud) loadQuiz(); });
 })();
 </script>
 </body>
