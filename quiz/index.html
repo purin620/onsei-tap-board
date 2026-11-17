@@ -157,8 +157,21 @@ body {
 /* スタンプ */
 .stamps { display: flex; flex-wrap: wrap; justify-content: center; gap: 1.6vmin; max-width: 80vw; }
 .stamp { width: 12vmin; height: 12vmin; }
-.stamp.big { width: 30vmin; height: 30vmin; animation: stampIn .5s cubic-bezier(.2, 1.6, .4, 1) both; }
-@keyframes stampIn { from { transform: scale(2.2) rotate(-25deg); opacity: 0; } to { transform: scale(1) rotate(-8deg); opacity: 1; } }
+.stamp.big { width: 34vmin; height: 34vmin; position: relative; z-index: 1; animation: stampIn .9s cubic-bezier(.2, 1.6, .4, 1) both, stampSpin 1.2s .9s ease-in-out; }
+@keyframes stampIn { 0% { transform: scale(5) rotate(-60deg); opacity: 0; } 60% { opacity: 1; } 100% { transform: scale(1) rotate(-8deg); opacity: 1; } }
+@keyframes stampSpin { 0% { transform: scale(1) rotate(-8deg); } 50% { transform: scale(1.15) rotate(352deg); } 100% { transform: scale(1) rotate(352deg); } }
+#bigStamp { position: relative; display: grid; place-items: center; }
+#bigStamp::before { content: ""; position: absolute; width: 70vmin; height: 70vmin; border-radius: 50%;
+  background: repeating-conic-gradient(rgba(246, 211, 91, .55) 0 10deg, transparent 10deg 20deg);
+  animation: rays 6s linear infinite, raysIn .6s ease-out both; }
+@keyframes rays { to { transform: rotate(360deg); } }
+@keyframes raysIn { from { opacity: 0; transform: scale(.2); } }
+#stampScr.party { animation: flash .9s ease-out; }
+@keyframes flash { 0% { background: rgba(255, 229, 138, 1); } 100% { background: rgba(255, 255, 255, .92); } }
+#stampScr.party #stampTitle { animation: bounce .7s ease-in-out .6s 3; }
+@keyframes bounce { 50% { transform: translateY(-3vmin) scale(1.12); } }
+.firework { position: fixed; pointer-events: none; z-index: 11; width: 1.6vmin; height: 1.6vmin; border-radius: 50%; animation: boom 1.2s ease-out forwards; }
+@keyframes boom { from { transform: translate(0, 0); opacity: 1; } to { transform: translate(var(--dx), var(--dy)); opacity: 0; } }
 .btnrow { display: flex; gap: 3vmin; flex-wrap: wrap; justify-content: center; }
 .next.sub { background: #fff; color: var(--accent); border: 4px solid var(--accent); box-shadow: none; }
 .mystamps { display: flex; justify-content: center; gap: .6vmin; min-height: 5vmin; flex-wrap: wrap; }
@@ -335,7 +348,13 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
       <label>正解の答え（ひらがな。いくつかある時は「、」で区切る）
         <input type="text" id="addKotae" placeholder="例：たなか、たなかせんせい" autocomplete="off">
       </label>
-      <label class="check"><input type="checkbox" id="addSensei"> 答え合わせで名前のあとに「せんせい」をつける</label>
+      <label>答え合わせのよびかた（名前のあとにつける）
+        <select id="addHonor">
+          <option value="">なし</option>
+          <option value="san">さん</option>
+          <option value="sensei">せんせい</option>
+        </select>
+      </label>
       <button type="button" id="addBtn">登録する</button>
     </div>
     <h3>問題の いちらん</h3>
@@ -611,24 +630,39 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
   // はじめから入っている問題のうち、けした（かくした）もの
   var hidden = [];
   // 「せんせい」をつける問題
-  var sensei = [];
+  var sensei = [], san = [];
   function loadHidden(cb) {
     if (cloud) {
-      Promise.all([cloud.db.doc("settings/kakusu").get(), cloud.db.doc("settings/sensei").get()]).then(function (r) {
+      Promise.all([cloud.db.doc("settings/kakusu").get(), cloud.db.doc("settings/sensei").get(), cloud.db.doc("settings/san").get()]).then(function (r) {
         hidden = (r[0].exists && r[0].data().list) || [];
         sensei = (r[1].exists && r[1].data().list) || [];
+        san = (r[2].exists && r[2].data().list) || [];
         cb();
       }).catch(function () { cb(); });
       return;
     }
     try { hidden = JSON.parse(store("quiz.hidden") || "[]"); } catch (e) { hidden = []; }
     try { sensei = JSON.parse(store("quiz.sensei") || "[]"); } catch (e) { sensei = []; }
+    try { san = JSON.parse(store("quiz.san") || "[]"); } catch (e) { san = []; }
     cb();
   }
   function saveSensei(cb) {
-    if (cloud) { cloud.db.doc("settings/sensei").set({ list: sensei }).then(cb).catch(function () { showWarn("保存できませんでした。"); }); return; }
-    store("quiz.sensei", JSON.stringify(sensei)); cb();
+    if (cloud) {
+      Promise.all([cloud.db.doc("settings/sensei").set({ list: sensei }), cloud.db.doc("settings/san").set({ list: san })])
+        .then(function () { cb(); }).catch(function () { showWarn("保存できませんでした。"); });
+      return;
+    }
+    store("quiz.sensei", JSON.stringify(sensei)); store("quiz.san", JSON.stringify(san)); cb();
   }
+  // よびかた：""（なし）/ "san" / "sensei"
+  function honorOf(key) { return sensei.indexOf(key) >= 0 ? "sensei" : san.indexOf(key) >= 0 ? "san" : ""; }
+  function setHonor(key, h) {
+    sensei = sensei.filter(function (k) { return k !== key; });
+    san = san.filter(function (k) { return k !== key; });
+    if (h === "sensei") sensei = sensei.concat([key]);
+    if (h === "san") san = san.concat([key]);
+  }
+  var HONOR_TEXT = { "": "", san: "さん", sensei: "せんせい" };
   function saveHidden(cb) {
     if (cloud) { cloud.db.doc("settings/kakusu").set({ list: hidden }).then(cb).catch(function () { showWarn("保存できませんでした。"); }); return; }
     store("quiz.hidden", JSON.stringify(hidden)); cb();
@@ -655,7 +689,7 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
       mine = mine.map(function (m) { return { key: m.id != null ? "m" + m.id : "", img: m.img, kotae: m.kotae, namae: m.namae }; });
       quiz = src === "app" ? base : src === "mine" ? mine : base.concat(mine);
       if (!quiz.length) quiz = base.length ? base : mine;
-      quiz.forEach(function (q) { q.sensei = sensei.indexOf(q.key) >= 0; });
+      quiz.forEach(function (q) { q.honor = HONOR_TEXT[honorOf(q.key)]; });
       if ((store("quiz.order") || "fixed") === "random") {
         for (var i = quiz.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = quiz[i]; quiz[i] = quiz[j]; quiz[j] = t; }
       }
@@ -723,7 +757,7 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
   function showOK() {
     var q = quiz[idx];
     var p = PRAISE[Math.floor(Math.random() * PRAISE.length)];
-    var name = text.join("") + (q.sensei ? "せんせい" : "");
+    var name = text.join("") + (q.honor || "");
     $("okName").textContent = name + "　" + p;
     $("watch").hidden = !(q.key && videos[q.key]);
     $("ok").hidden = false;
@@ -758,9 +792,14 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
     $("stampSub").textContent = done + "もん できたね！" + (last ? " ぜんぶ おわり！" : "");
     drawStamps($("stampRow"));
     $("tsuzuku").hidden = last;
-    $("stampScr").hidden = false;
-    confetti();
-    speak("スタンプ ゲット！ " + done + "もん できたね！");
+    var scr = $("stampScr");
+    scr.classList.remove("party"); void scr.offsetWidth; scr.classList.add("party");
+    scr.hidden = false;
+    confetti(160);
+    fireworks();
+    fanfare();
+    // ファンファーレのあとに読み上げ
+    setTimeout(function () { speak("スタンプ ゲット！ すごーい！ " + done + "もん できたね！"); }, 1300);
   }
   $("next").addEventListener("click", goNext);
   $("tsuzuku").addEventListener("click", function () { show(); });
@@ -812,18 +851,57 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
   }
   tabs.forEach(function (t) { t.addEventListener("click", function () { t.classList.remove("glow"); }); });
 
-  function confetti() {
+  // はなび（画面のあちこちで ぱーん）
+  function fireworks() {
+    if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    var cs = ["#e8505b", "#f6d35b", "#3d9a5b", "#2a62b8", "#b04fc4", "#f2a541"];
+    for (var k = 0; k < 6; k++) (function (k) {
+      setTimeout(function () {
+        var x = 10 + Math.random() * 80, y = 10 + Math.random() * 50;
+        for (var i = 0; i < 18; i++) {
+          var d = document.createElement("i"); d.className = "firework";
+          var a = i / 18 * Math.PI * 2, r = 14 + Math.random() * 8;
+          d.style.left = x + "vw"; d.style.top = y + "vh";
+          d.style.background = cs[(k + i) % cs.length];
+          d.style.setProperty("--dx", Math.cos(a) * r + "vmin"); d.style.setProperty("--dy", Math.sin(a) * r + "vmin");
+          document.body.appendChild(d);
+          setTimeout(function (el) { return function () { el.remove(); }; }(d), 1300);
+        }
+      }, k * 350);
+    })(k);
+  }
+  // ファンファーレ（パパパ パーン）
+  var actx = null;
+  function fanfare() {
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state === "suspended") actx.resume();
+      var t0 = actx.currentTime + 0.05;
+      var notes = [[523, 0, .14], [523, .16, .14], [523, .32, .14], [784, .5, .7], [659, .5, .7], [1047, .5, .7]];
+      notes.forEach(function (n) {
+        var o = actx.createOscillator(), g = actx.createGain();
+        o.type = "triangle"; o.frequency.value = n[0];
+        g.gain.setValueAtTime(0, t0 + n[1]);
+        g.gain.linearRampToValueAtTime(.18, t0 + n[1] + .02);
+        g.gain.exponentialRampToValueAtTime(.001, t0 + n[1] + n[2]);
+        o.connect(g); g.connect(actx.destination);
+        o.start(t0 + n[1]); o.stop(t0 + n[1] + n[2] + .05);
+      });
+    } catch (e) {}
+  }
+  function confetti(count) {
     var box = $("confetti");
     var cs = ["#e8505b", "#f6d35b", "#8fd17f", "#8cc8ef", "#f4a7c3"];
     box.innerHTML = "";
-    for (var i = 0; i < 40; i++) {
+    count = count || 40;
+    for (var i = 0; i < count; i++) {
       var p = document.createElement("i");
       p.style.left = Math.random() * 100 + "vw";
       p.style.background = cs[i % cs.length];
-      p.style.animationDelay = Math.random() * 0.8 + "s";
+      p.style.animationDelay = Math.random() * (count > 40 ? 2 : 0.8) + "s";
       box.appendChild(p);
     }
-    setTimeout(function () { box.innerHTML = ""; }, 3500);
+    setTimeout(function () { box.innerHTML = ""; }, count > 40 ? 5000 : 3500);
   }
 
   // ---- 集中のための工夫 ----
@@ -935,11 +1013,12 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
       }
     }
     if (key) {
-      var on = sensei.indexOf(key) >= 0;
-      var sb = document.createElement("button"); sb.type = "button"; sb.className = "sen" + (on ? " on" : "");
-      sb.textContent = on ? "せんせい ✓" : "せんせい をつける";
+      // おすたびに なし → さん → せんせい → なし
+      var h = honorOf(key);
+      var sb = document.createElement("button"); sb.type = "button"; sb.className = "sen" + (h ? " on" : "");
+      sb.textContent = "よびかた：" + (h ? HONOR_TEXT[h] : "なし");
       sb.addEventListener("click", function () {
-        sensei = on ? sensei.filter(function (k) { return k !== key; }) : sensei.concat([key]);
+        setHonor(key, h === "" ? "san" : h === "san" ? "sensei" : "");
         saveSensei(function () { drawMine(); loadQuiz(); });
       });
       bs.appendChild(sb);
@@ -996,18 +1075,18 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
     if (!f) { showWarn("写真をえらんでください。"); return; }
     if (!kotae.length) { showWarn("正解の答えを入れてください。"); return; }
     if (kotae.some(function (k) { return /[^ぁ-ゖー]/.test(k); })) { showWarn("答えはひらがなで入れてください。"); return; }
-    var namae = kotae[0], addSen = $("addSensei").checked;
+    var namae = kotae[0], addHonor = $("addHonor").value;
     var btn = $("addBtn"); if (btn.disabled) return; btn.disabled = true; btn.textContent = "保存しています…";
     setTimeout(function () { btn.disabled = false; btn.textContent = "登録する"; }, 8000);
     shrink(f, function (dataUrl) {
       putMine({ img: dataUrl, kotae: kotae, namae: namae }, function (newId) {
         btn.disabled = false; btn.textContent = "登録する";
-        $("addFile").value = ""; $("addKotae").value = ""; $("addSensei").checked = false;
+        $("addFile").value = ""; $("addKotae").value = ""; $("addHonor").value = "";
         function done() {
           showWarn("登録しました。いま 出ているのが 追加した問題です。");
           drawMine(); panel.hidden = true; loadQuiz(kotae.join("、"));
         }
-        if (addSen && newId != null) { sensei = sensei.concat(["m" + newId]); saveSensei(done); } else done();
+        if (addHonor && newId != null) { setHonor("m" + newId, addHonor); saveSensei(done); } else done();
       });
     });
   });
