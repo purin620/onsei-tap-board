@@ -245,7 +245,7 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
     ["きゃ","きゅ","きょ"]
   ];
   // 1文字だけだと読みにくいものの読ませ方
-  var SAY = { "っ": "ちいさい つ", "ー": "のばす", "を": "を", "ぢ": "ぢ", "づ": "づ" };
+  var SAY = { "っ": "ちいさい つ", "ー": "のばす", "を": "を", "ぢ": "ぢ", "づ": "づ", "は": "ハ", "へ": "ヘ" }; // 「は」「へ」は1文字だと「わ」「え」と読まれるのでカタカナで読ませる
   var COLORS = ["var(--pink)", "var(--yellow)", "var(--green)", "var(--blue)"];
 
   function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
