@@ -180,7 +180,8 @@ body {
 /* どうが */
 .video { position: fixed; inset: 0; z-index: 12; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2vmin;
   padding: 2vmin max(16px, env(safe-area-inset-right, 0px)) 2vmin max(16px, env(safe-area-inset-left, 0px)); }
-.video video { max-width: 100%; max-height: 80vh; background: #000; }
+.video video { max-width: 100%; max-height: 80vh; background: #000; pointer-events: none; -webkit-user-select: none; user-select: none; }
+.video .vplay { position: absolute; left: 50%; top: 45%; transform: translate(-50%, -50%); font: 900 7vmin/1 var(--kana); color: #fff; background: var(--ok); border: 0; border-radius: 3vmin; padding: 3vmin 5vmin; box-shadow: 0 1vmin 0 #b9343e; }
 .watch { background: var(--ok); box-shadow: 0 1vmin 0 #b9343e; }
 .vbtns { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .vbtns button { padding: 6px 10px; }
@@ -332,7 +333,8 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
 
 <!-- どうが -->
 <div class="video" id="videoScr" hidden>
-  <video id="vid" controls playsinline></video>
+  <video id="vid" playsinline webkit-playsinline disablepictureinpicture disableremoteplayback x-webkit-airplay="deny" preload="auto"></video>
+  <button class="vplay" id="vidPlay" type="button" hidden>▶ みる</button>
   <button class="next" id="vidNext" type="button">つぎへ ▶</button>
 </div>
 <div class="confetti" id="confetti"></div>
@@ -856,14 +858,35 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
       vidFallback = d.b64 ? "data:" + d.type + ";base64," + d.b64 : null;
       vid.src = d.url;
       $("videoScr").hidden = false;
-      var pr = vid.play(); if (pr && pr.catch) pr.catch(function () {});
+      playOnce();
     }, function () { w.textContent = "▶ どうがを みる"; showWarn("どうがを よみこめませんでした。"); });
   });
-  function closeVideo() { vid.pause(); vid.removeAttribute("src"); vid.load(); $("videoScr").hidden = true; }
+  // 子どもが まきもどしたり くりかえし見たりしないように、操作は出さず1回だけ流して自動でつぎへ
+  var vidStarted = false;
+  function playOnce() {
+    vidStarted = false;
+    $("vidPlay").hidden = true;
+    var pr = vid.play();
+    if (pr && pr.catch) pr.catch(function () { if (!$("videoScr").hidden && !vidStarted) $("vidPlay").hidden = false; });
+  }
+  vid.addEventListener("playing", function () { vidStarted = true; $("vidPlay").hidden = true; });
+  $("vidPlay").addEventListener("click", function () {
+    if (vidStarted) return;
+    $("vidPlay").hidden = true;
+    var pr = vid.play(); if (pr && pr.catch) pr.catch(function () { $("vidPlay").hidden = false; });
+  });
+  // 止められても先頭にはもどさない（1回きり）
+  vid.addEventListener("pause", function () { if (vidStarted && !vid.ended && !$("videoScr").hidden) vid.play(); });
+  vid.addEventListener("ended", function () {
+    if ($("videoScr").hidden) return;
+    setTimeout(function () { if (!$("videoScr").hidden) { closeVideo(); goNext(); } }, 800);
+  });
+  vid.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+  function closeVideo() { vidStarted = false; $("vidPlay").hidden = true; vid.pause(); vid.removeAttribute("src"); vid.load(); $("videoScr").hidden = true; }
   $("vidNext").addEventListener("click", function () { closeVideo(); goNext(); });
   vid.addEventListener("error", function () {
     if ($("videoScr").hidden) return;
-    if (vidFallback) { var f = vidFallback; vidFallback = null; vid.src = f; var pr = vid.play(); if (pr && pr.catch) pr.catch(function () {}); return; }
+    if (vidFallback) { var f = vidFallback; vidFallback = null; vid.src = f; playOnce(); return; }
     showWarn("どうがを さいせいできませんでした。");
   });
 
