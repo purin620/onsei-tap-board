@@ -60,7 +60,7 @@ body {
 .pic {
   grid-area: pic;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  grid-template-rows: minmax(0, 1fr) auto auto auto;
   gap: 1.2vmin;
   min-height: 0;
 }
@@ -251,7 +251,6 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
 <body>
 <div class="app">
   <section class="pic">
-    <p class="ask">だれかな？</p>
     <div class="photo"><img id="photo" alt="もんだいの しゃしん"></div>
     <p class="hint" id="hint" hidden></p>
     <div class="dots" id="dots"></div>
@@ -690,7 +689,7 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
       quiz = src === "app" ? base : src === "mine" ? mine : base.concat(mine);
       if (!quiz.length) quiz = base.length ? base : mine;
       quiz.forEach(function (q) { q.honor = HONOR_TEXT[honorOf(q.key)]; });
-      if ((store("quiz.order") || "fixed") === "random") {
+      if ((store("quiz.order") || "random") === "random") {
         for (var i = quiz.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = quiz[i]; quiz[i] = quiz[j]; quiz[j] = t; }
       }
       idx = 0; doneCount = 0; stamps = 0;
@@ -928,7 +927,7 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
     el.addEventListener("change", function () { store(key, el.value); if (onChange) onChange(); });
   }
   bindSel("src", "quiz.src2", "both", function () { loadQuiz(); });
-  bindSel("order", "quiz.order", "fixed", function () { loadQuiz(); });
+  bindSel("order", "quiz.order", "random", function () { loadQuiz(); });
   bindSel("setSize", "quiz.setSize", "5", function () { loadQuiz(); });
   bindSel("hintAfter", "quiz.hintAfter", "0");
   bindSel("rate", "quiz.rate", "0.8");
