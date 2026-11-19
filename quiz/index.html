@@ -614,7 +614,7 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
     if (cloud) {
       cloud.db.collection("mondai").doc(m.id).delete().then(function () {
         var v = videos["m" + m.id];
-        if (v) { cloud.db.collection("douga").doc("m" + m.id).delete().catch(function () {}); cloud.assets.delete(v.asset).catch(function () {}); }
+        if (v) { cloud.db.collection("douga").doc("m" + m.id).delete().catch(function () {}); removeVideoData("m" + m.id, v); }
         return m.asset ? cloud.assets.delete(m.asset).catch(function () {}) : null;
       }).then(cb).catch(function () { showWarn("けせませんでした。"); });
       return;
@@ -673,7 +673,10 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
     Promise.all([cloud.db.collection("douga").get(), cloud.assets.list().catch(function () { return null; })]).then(function (r) {
       var urls = {}; videos = {};
       if (r[1] && r[1].assets) r[1].assets.forEach(function (a) { urls[a.id] = a.url; });
-      r[0].docs.forEach(function (d) { var v = d.data(); videos[d.id] = { asset: v.asset, url: urls[v.asset] || ("/_blob/" + v.asset) }; });
+      r[0].docs.forEach(function (d) {
+        var v = d.data();
+        videos[d.id] = { asset: v.asset || "", url: v.asset ? (urls[v.asset] || ("/_blob/" + v.asset)) : "", chunks: v.chunks || 0, ver: v.ver || "", type: v.type || "video/mp4" };
+      });
       cb();
     }).catch(function () { cb(); });
   }
@@ -759,6 +762,7 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
     var name = text.join("") + (q.honor || "");
     $("okName").textContent = name + "　" + p;
     $("watch").hidden = !(q.key && videos[q.key]);
+    if (q.key && videos[q.key]) loadVideoData(q.key).catch(function () {});
     $("ok").hidden = false;
     confetti();
     speak("せいかい！ " + name + "！ " + p);
@@ -813,17 +817,50 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
   // ---- どうが ----
   var videos = {};
   var vid = $("vid");
+  // 動画は小さく分けて保存してあるので、読みこんで1本にもどす（iPadで画像・動画のリンクが開けないため）
+  var vidCache = {};
+  function b64ToU8(b64) { var bin = atob(b64), a = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i); return a; }
+  function loadVideoData(key) {
+    var v = videos[key];
+    if (!v) return Promise.reject();
+    if (vidCache[key] && vidCache[key].ver === v.ver) return vidCache[key].p;
+    var p;
+    if (v.chunks) {
+      var gets = [];
+      for (var i = 0; i < v.chunks; i++) gets.push(cloud.db.collection("dougaData").doc(key + "-" + v.ver + "-" + i).get());
+      p = Promise.all(gets).then(function (docs) {
+        var b64 = docs.map(function (d) { return d.exists ? d.data().d : ""; });
+        var blob = new Blob(b64.map(b64ToU8), { type: v.type });
+        return { url: URL.createObjectURL(blob), b64: b64.join(""), type: v.type };
+      });
+    } else {
+      p = Promise.resolve({ url: v.url });
+    }
+    vidCache[key] = { ver: v.ver, p: p };
+    p.catch(function () { delete vidCache[key]; });
+    return p;
+  }
+  var vidFallback = null;
   $("watch").addEventListener("click", function () {
     var q = quiz[idx];
     if (!q || !videos[q.key]) return;
     if (synth) synth.cancel();
-    vid.src = videos[q.key].url;
-    $("videoScr").hidden = false;
-    var pr = vid.play(); if (pr && pr.catch) pr.catch(function () {});
+    var w = $("watch"); w.textContent = "よみこみ中…";
+    loadVideoData(q.key).then(function (d) {
+      w.textContent = "▶ どうがを みる";
+      vidFallback = d.b64 ? "data:" + d.type + ";base64," + d.b64 : null;
+      vid.src = d.url;
+      $("videoScr").hidden = false;
+      var pr = vid.play(); if (pr && pr.catch) pr.catch(function () {});
+    }, function () { w.textContent = "▶ どうがを みる"; showWarn("どうがを よみこめませんでした。"); });
   });
   function closeVideo() { vid.pause(); vid.removeAttribute("src"); vid.load(); $("videoScr").hidden = true; }
   $("vidNext").addEventListener("click", function () { closeVideo(); goNext(); });
-  vid.addEventListener("error", function () { if (!$("videoScr").hidden) showWarn("どうがを さいせいできませんでした。"); });
+  vid.addEventListener("error", function () {
+    if ($("videoScr").hidden) return;
+    if (vidFallback) { var f = vidFallback; vidFallback = null; vid.src = f; var pr = vid.play(); if (pr && pr.catch) pr.catch(function () {}); return; }
+    showWarn("どうがを さいせいできませんでした。");
+  });
 
   // ---- ヒント：つぎに おす文字を光らせる ----
   function clearHint() {
@@ -978,20 +1015,33 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
   $("vidFile").addEventListener("change", function () {
     var f = this.files[0], key = vidKey;
     if (!f || !key || !cloud) return;
-    if (f.size > 20 * 1024 * 1024) { showWarn("動画が大きすぎます（20MBまで）。短く切った動画にしてください。"); return; }
-    var type = /webm/.test(f.type) ? "video/webm" : "video/mp4";
-    showWarn("動画を保存しています…");
-    cloud.assets.upload(f, { type: type }).then(function (up) {
+    if (f.size > 15 * 1024 * 1024) { showWarn("動画が大きすぎます（15MBまで）。短く切った動画にしてください。"); return; }
+    var type = f.type || "video/mp4";
+    var CH = 150 * 1024, ver = String(Date.now());
+    f.arrayBuffer().then(function (buf) {
+      var u8 = new Uint8Array(buf), n = Math.ceil(u8.length / CH), i = 0;
+      function b64(a) { var s = ""; for (var j = 0; j < a.length; j += 0x8000) s += String.fromCharCode.apply(null, a.subarray(j, j + 0x8000)); return btoa(s); }
+      function next() {
+        if (i >= n) return Promise.resolve();
+        warn.textContent = "動画を保存しています… " + Math.round(i / n * 100) + "%"; warn.hidden = false;
+        var part = b64(u8.subarray(i * CH, (i + 1) * CH));
+        return cloud.db.collection("dougaData").doc(key + "-" + ver + "-" + i).set({ d: part }).then(function () { i++; return next(); });
+      }
       var old = videos[key];
-      return cloud.db.collection("douga").doc(key).set({ asset: up.id }).then(function () {
-        if (old) cloud.assets.delete(old.asset).catch(function () {});
-      });
+      return next().then(function () {
+        return cloud.db.collection("douga").doc(key).set({ chunks: n, ver: ver, type: type });
+      }).then(function () { if (old) removeVideoData(key, old); });
     }).then(function () { showWarn("動画をつけました。"); loadVideos(function () { drawMine(); }); })
       .catch(function () { showWarn("動画を保存できませんでした。"); });
   });
+  // 古い動画のかけらを消す
+  function removeVideoData(key, v) {
+    for (var i = 0; i < (v.chunks || 0); i++) cloud.db.collection("dougaData").doc(key + "-" + v.ver + "-" + i).delete().catch(function () {});
+    if (v.asset) cloud.assets.delete(v.asset).catch(function () {});
+  }
   function delVideo(key) {
     var v = videos[key]; if (!v || !cloud) return;
-    cloud.db.collection("douga").doc(key).delete().then(function () { return cloud.assets.delete(v.asset).catch(function () {}); })
+    cloud.db.collection("douga").doc(key).delete().then(function () { removeVideoData(key, v); })
       .then(function () { showWarn("動画をけしました。"); loadVideos(function () { drawMine(); }); });
   }
   function itemRow(img, label, btnText, btnClass, onClick, dim, key) {
