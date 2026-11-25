@@ -24,3 +24,9 @@
 `kotoba/index.html` は、紙の五十音表と同じ並び（右から あ行）の文字をタップすると1文字ずつ読み上げるページです。「あいう」「がぎぐ」「きゃ・っ」の3つの表を下のタブで切り替えます。右下の⚙を1.5秒長押しすると先生用の設定（速さ・声・「よむ」ボタン）が開きます。
 
 公開URL: `https://purin620.github.io/onsei-tap-board/kotoba/`
+
+## おんがくスイッチ（外部スイッチで音楽を流す）
+
+`ongaku/` は、外部スイッチを1回押すだけで音楽を再生・停止・曲送りできるiPad向け教材です。くわしくは [ongaku/README.md](ongaku/README.md)。
+
+公開URL（予定）: `https://purin620.github.io/onsei-tap-board/ongaku/`

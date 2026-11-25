@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="おんがく">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#FFF6E9">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/app.css">
+<title>おんがくスイッチ</title>
+</head>
+<body data-layout="one" data-size="L">
+
+<!-- 児童用画面 -->
+<main id="stage">
+  <div id="obsbar" hidden></div>
+  <div id="one" class="pad">
+    <button id="btn1" class="big" type="button" tabindex="-1"><span class="icon"></span><span class="label"></span></button>
+  </div>
+  <div id="two" class="pad" hidden>
+    <div class="half"><button id="btnL" class="big" type="button" tabindex="-1"><span class="icon"></span><span class="label"></span></button></div>
+    <div class="half"><button id="btnR" class="big" type="button" tabindex="-1"><span class="icon"></span><span class="label"></span></button></div>
+  </div>
+  <div id="title" aria-live="off"></div>
+  <!-- 先生用：1.5秒長押しで設定を開く（スイッチコントロールの選択対象にしない） -->
+  <div id="gear" aria-hidden="true" title="長押しで先生用の設定">
+    <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19.4 13a7.5 7.5 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7 7 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7.5 7.5 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7 7 0 0 0 1.7-1l2.4 1 2-3.4zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>
+    <span class="ring"></span>
+  </div>
+</main>
+
+<!-- 開始画面（先生が操作） -->
+<section id="start">
+  <div class="card">
+    <h1><span class="logo" aria-hidden="true">♪</span>おんがくスイッチ</h1>
+    <label class="row">児童
+      <select id="startStudent"></select>
+    </label>
+    <div id="startInfo" class="info"></div>
+    <p id="startNoSongs" class="warn" hidden>まだ曲がありません。「先生用の設定」→「音楽」から曲を追加してください。</p>
+    <button id="startGo" class="go" type="button">学習スタート</button>
+    <div class="sub">
+      <button id="startSettings" type="button">先生用の設定</button>
+      <button id="startFull" type="button" hidden>全画面にする</button>
+    </div>
+    <p class="hint">学習中に設定を開くときは、画面の右下の歯車を1.5秒ほど長押しします。</p>
+  </div>
+</section>
+
+<!-- 先生用設定画面 -->
+<section id="panel" hidden>
+  <header>
+    <h2>先生用の設定</h2>
+    <div class="actions">
+      <button type="button" id="panelEnd" class="danger" hidden>学習をおわる</button>
+      <button type="button" id="panelClose" class="primary">とじる</button>
+    </div>
+  </header>
+  <nav id="tabs">
+    <button type="button" data-tab="mode">学習モード</button>
+    <button type="button" data-tab="music">音楽</button>
+    <button type="button" data-tab="switch">スイッチ</button>
+    <button type="button" data-tab="look">画面</button>
+    <button type="button" data-tab="records">学習記録</button>
+    <button type="button" data-tab="data">データ・児童</button>
+  </nav>
+  <div id="panelBody"></div>
+</section>
+
+<div id="dialog" hidden><div class="box" role="dialog" aria-modal="true"></div></div>
+<div id="toast" hidden role="status"></div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
