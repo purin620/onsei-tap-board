@@ -29,7 +29,7 @@ function check(name, ok, info = '') { results.push([ok, name, info]); console.lo
     // ファイルの中身を直接わたす（パス指定はブラウザの権限で読めない環境があるため）
     return { name: n + '.wav', mimeType: 'audio/wav', buffer: wav(s, f) };
   });
-  const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
+  const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
   const ctx = await browser.newContext({ viewport: { width: 1180, height: 820 }, deviceScaleFactor: SHOTS ? 2 : 1 });
   const page = await ctx.newPage();
   const errors = [];
@@ -240,6 +240,24 @@ function check(name, ok, info = '') { results.push([ok, name, info]); console.lo
   await shot('12-portrait');
   const bb = await page.locator('#btn1').boundingBox();
   check('縦向きでもボタンが画面内に収まる', bb && bb.x >= 0 && bb.x + bb.width <= 820 && bb.y + bb.height <= 1180);
+
+  // 録音して追加（Chromiumの仮のマイクを使用）
+  await page.setViewportSize({ width: 1180, height: 820 });
+  const before = await page.evaluate(() => window.__ongaku.S.songs.size);
+  await openPanel();
+  await page.click('[data-tab="music"]');
+  await page.click('[data-act="rec"]');
+  await page.click('#rStart');
+  await wait(2200);
+  await page.click('#rStop');
+  await page.waitForSelector('#rSave:not([disabled])');
+  await page.fill('#rName', 'せんせいのうた');
+  await shot('13-record');
+  await page.click('#rSave');
+  await page.waitForFunction((b) => window.__ongaku.S.songs.size === b + 1, before, { timeout: 10000 });
+  const recSong = await page.evaluate(() => [...window.__ongaku.S.songs.values()].find((x) => x.name === 'せんせいのうた'));
+  const decoded = await page.evaluate(async (id) => { const P = window.__ongaku.player; const song = window.__ongaku.S.songs.get(id); const b = await P.prepare(song); return b.duration; }, recSong.id);
+  check('録音して曲として追加でき、再生用に読み込める', !!recSong && decoded > 1, `長さ ${decoded.toFixed(1)}秒`);
 
   check('エラーが出ていない', errors.length === 0, errors.join(' | ').slice(0, 300));
   await browser.close();

@@ -9,6 +9,7 @@ import { keyLabel } from './input.js';
 import { dialog, confirmDlg, promptDlg, fmtTime, fmtBytes } from './ui.js';
 import { renderRecords } from './records.js';
 import { makeBackup, restoreBackup } from './backup.js';
+import { Recorder, canRecord, extOf } from './recorder.js';
 
 const $ = (s) => document.querySelector(s);
 let tab = 'mode';
@@ -164,7 +165,10 @@ async function tabMusic(body) {
     <p class="note">ここで選んだプレイリストが学習で使われます。</p>
   </div>
   <div class="sec"><h3>曲を追加する</h3>
-    <button class="btn primary" data-act="add">＋ 音楽ファイルを選ぶ（複数可）</button>
+    <div class="field" style="margin:0">
+      <button class="btn primary" data-act="add">＋ 音楽ファイルを選ぶ（複数可）</button>
+      <button class="btn" data-act="rec" ${canRecord() ? '' : 'disabled'}>● 録音して追加</button>
+    </div>
     <input type="file" id="fileIn" multiple accept="audio/*,.mp3,.m4a,.aac,.wav,.mp4,.caf,.aif,.aiff" hidden>
     <p class="note" id="addMsg">MP3・M4A（DRMのないAAC）・WAV などに対応しています。iPadでは「ファイル」アプリの中の音楽ファイルを選べます。追加した曲は「${esc(pl ? pl.name : '')}」に入ります。</p>
   </div>
@@ -217,6 +221,7 @@ async function tabMusic(body) {
     const li = b.closest('li');
     const id = li && li.dataset.id;
     if (act === 'add') { fileIn.value = ''; fileIn.click(); return; }
+    if (act === 'rec') { await recordDialog(pl); renderTab(); return; }
     if (act === 'plNew') {
       const name = await promptDlg('新しいプレイリストの名前', `プレイリスト${S.playlists.length + 1}`);
       if (!name) return;
@@ -247,6 +252,69 @@ async function tabMusic(body) {
     if (act === 'out') { pl.songIds = pl.songIds.filter((x) => x !== id); await savePlaylist(pl); resetPlaybackPosition(); renderTab(); return; }
     if (act === 'in') { pl.songIds.push(id); await savePlaylist(pl); prepareAround(); renderTab(); }
   });
+}
+
+// 録音して追加
+async function recordDialog(pl) {
+  stopPreview();
+  if (S.playing) stopPlayback('stop', { reason: '録音のため' });
+  const rec = new Recorder();
+  let result = null; let url = ''; let tick = null;
+  const res = await dialog(`
+    <h3>録音して追加</h3>
+    <p class="note">先生の歌や演奏、学校で作った音楽などを録音して、曲として登録できます。<br>
+    ※ 音楽配信サービス（YouTube Music など）で流した曲を録音することは、各サービスの利用規約で禁止されています。</p>
+    <div class="field">
+      <button class="btn primary" id="rStart">● 録音をはじめる</button>
+      <button class="btn danger" id="rStop" disabled>■ 録音をとめる</button>
+      <span class="lamp" id="rTime">0:00</span>
+    </div>
+    <p class="note" id="rMsg">はじめて使うときは、マイクの使用を「許可」してください。</p>
+    <div id="rAfter" hidden>
+      <audio id="rAudio" controls style="width:100%"></audio>
+      <div class="field"><label>曲名</label><input type="text" id="rName" style="flex:1" value="録音 ${new Date().toLocaleDateString('ja-JP')}"></div>
+      <p class="note">使う部分（はじめ・おわりの無音を切るなど）は、保存したあとに「編集」で設定できます。</p>
+    </div>
+    <div class="foot">
+      <button class="btn" data-close="">やめる</button>
+      <button class="btn primary" id="rSave" disabled>保存して追加</button>
+    </div>`, (box, close) => {
+    const g = (id) => box.querySelector(id);
+    g('#rStart').onclick = async () => {
+      try {
+        if (url) { URL.revokeObjectURL(url); url = ''; }
+        result = null; g('#rAfter').hidden = true; g('#rSave').disabled = true;
+        await rec.start();
+        g('#rStart').disabled = true; g('#rStop').disabled = false;
+        g('#rMsg').textContent = '録音中です…';
+        tick = setInterval(() => { g('#rTime').textContent = fmtTime(Math.floor(rec.seconds)); }, 250);
+      } catch (e) {
+        g('#rMsg').textContent = 'マイクが使えませんでした。iPadの「設定」→「Safari」（またはこのアプリ）→「マイク」を「許可」にしてください。';
+      }
+    };
+    g('#rStop').onclick = async () => {
+      clearInterval(tick);
+      result = await rec.stop();
+      g('#rStart').disabled = false; g('#rStop').disabled = true;
+      g('#rStart').textContent = '● 録りなおす';
+      if (!result || !result.blob.size) { g('#rMsg').textContent = '録音できませんでした。もう一度ためしてください。'; return; }
+      url = URL.createObjectURL(result.blob);
+      g('#rAudio').src = url;
+      g('#rAfter').hidden = false; g('#rSave').disabled = false;
+      g('#rMsg').textContent = `${Math.round(result.seconds)}秒録音しました。きいて確かめてから保存してください。`;
+    };
+    g('#rSave').onclick = () => { result.name = g('#rName').value.trim() || '録音'; close('save'); };
+  });
+  clearInterval(tick);
+  if (rec.startedAt) await rec.stop();
+  if (url) URL.revokeObjectURL(url);
+  if (res !== 'save' || !result) return;
+  const file = new File([result.blob], `${result.name}.${extOf(result.type)}`, { type: result.type });
+  const r = await importFiles([file], pl.id);
+  const song = r.added[0];
+  if (!song) { toast('保存できませんでした'); return; }
+  if (!song.duration) { song.duration = result.seconds; await DB.put('songs', song); }
+  toast(`「${song.name}」を追加しました`);
 }
 
 function songMeta(x) {

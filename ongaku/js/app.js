@@ -3,7 +3,7 @@ import * as DB from './db.js';
 import { Player } from './player.js';
 import { InputManager } from './input.js';
 
-export const VERSION = '1.0.0';
+export const VERSION = '1.1.0';
 
 // ---- 学習モード・機能の名前 -------------------------------------------
 export const MODES = {
