@@ -106,11 +106,12 @@ body[data-layout="two"] .big { --d: calc(min(50vw - 24px, 100dvh - 90px) * var(-
 #start {
   position: fixed; inset: 0; z-index: 20;
   background: var(--bg);
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
   padding: 16px;
   overflow: auto;
 }
 #start .card {
+  margin: auto; /* 画面が低いとき（iPhoneの横向き）も上が切れない */
   width: min(560px, 100%);
   background: var(--paper); border-radius: 28px;
   padding: 28px 28px 22px;

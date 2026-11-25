@@ -1,6 +1,6 @@
 // オフライン用：アプリの部品を端末に保存しておき、通信がなくても開けるようにする。
 // アプリを更新したときは VERSION の数字を変える。
-const VERSION = 'ongaku-v1.0.0';
+const VERSION = 'ongaku-v1.0.1';
 const FILES = [
   './',
   './index.html',
