@@ -29,4 +29,4 @@
 
 `ongaku/` は、外部スイッチを1回押すだけで音楽を再生・停止・曲送りできるiPad向け教材です。くわしくは [ongaku/README.md](ongaku/README.md)。
 
-公開URL（予定）: `https://purin620.github.io/onsei-tap-board/ongaku/`
+公開URL: `https://purin620.github.io/onsei-tap-board/ongaku/`

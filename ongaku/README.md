@@ -18,11 +18,11 @@ YouTubeのように操作ボタンが隠れたり、2回押しが必要になっ
 | [docs/CHECKLIST.md](docs/CHECKLIST.md) | 動作確認チェックリスト（自動確認の結果と、iPad実機で確認する項目） |
 | [docs/DEVLOG.md](docs/DEVLOG.md) | 開発記録・仮に決めた仕様・今後の機能追加の候補 |
 
-## 公開URL（予定）
+## 公開URL
 
 `https://purin620.github.io/onsei-tap-board/ongaku/`
 
-※ このURLで使えるようになるのは、作業ブランチを `main` に取り込んだ（マージした）あとです。
+※ `main` ブランチの内容が GitHub Pages で公開されます。
 
 ## できること（バージョン 1.1.0）
 
