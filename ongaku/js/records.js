@@ -1,7 +1,7 @@
 // 学習記録：一覧・グラフ・CSV出力
 import * as DB from './db.js';
 import { S, MODES, OBS, FUNCS, esc, toast, scheduleSave } from './app.js';
-import { saveFile, confirmDlg, fmtDate, fmtClock, dayKey } from './ui.js';
+import { saveFile, confirmDlg, fmtDate, fmtClock, dayKey, showTextForCopy } from './ui.js';
 
 const EV_LABEL = {
   input: 'スイッチ入力', play: '再生', stop: '停止', 'auto-stop': '自動停止', next: '曲送り', prev: '前の曲',
@@ -70,8 +70,9 @@ export async function renderRecords(body, { rerender }) {
     <div class="field">
       <button class="btn" data-act="csv">記録一覧をCSVで保存</button>
       <button class="btn" data-act="csvlog">操作ログをCSVで保存</button>
+      <button class="btn small" data-act="csvtext">記録一覧を画面に表示（コピー用）</button>
     </div>
-    <p class="note">CSVはExcelで開けます（文字化けしない形式）。iPadでは「ファイル」アプリの「ダウンロード」に入ります。</p>
+    <p class="note">CSVはExcelで開けます（文字化けしない形式）。共有の画面が出たら「"ファイル"に保存」などを選びます。ロイロノートの中で開いていて保存できないときは「画面に表示（コピー用）」を使ってください。</p>
   </div>
   <div class="sec"><h3>回数の推移（記録のある日、新しい14日分）</h3>
     ${dayRows.length ? chartHtml(dayRows.slice(0, 14).reverse()) : '<p class="empty">まだ記録がありません。</p>'}
@@ -94,6 +95,10 @@ export async function renderRecords(body, { rerender }) {
     if (a) {
       if (a.dataset.act === 'csv') await exportCsv(list);
       if (a.dataset.act === 'csvlog') await exportLogCsv(list);
+      if (a.dataset.act === 'csvtext') {
+        if (!list.length) { toast('記録がありません'); return; }
+        await showTextForCopy('記録一覧（CSV）', csvText(summaryRows(list)));
+      }
       return;
     }
     // 観察記録の ＋／−
@@ -227,14 +232,18 @@ function csvCell(v) {
   const s = String(v ?? '');
   return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
 }
+function csvText(rows) { return rows.map((r) => r.map(csvCell).join(',')).join('\r\n'); }
 function csvBlob(rows) {
-  const text = rows.map((r) => r.map(csvCell).join(',')).join('\r\n');
-  return new Blob(['﻿' + text], { type: 'text/csv;charset=utf-8' }); // BOM付き＝Excelで文字化けしない
+  return new Blob(['﻿' + csvText(rows)], { type: 'text/csv;charset=utf-8' }); // BOM付き＝Excelで文字化けしない
 }
 function stamp() { const d = new Date(); return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`; }
 
 async function exportCsv(list) {
   if (!list.length) { toast('記録がありません'); return; }
+  await saveFile(csvBlob(summaryRows(list)), `おんがくスイッチ_記録一覧_${stamp()}.csv`);
+}
+
+function summaryRows(list) {
   const head = ['児童', '実施日', '開始時刻', '終了時刻', '学習時間（分）', '学習モード', 'プレイリスト', 'スイッチ入力回数', '有効な操作回数', '再生回数', '停止回数', '自動停止回数', '曲送り回数', '再生した曲', ...OBS.map(([, l]) => l), 'メモ'];
   const rows = [head];
   for (const ses of [...list].sort((a, b) => a.startAt - b.startAt)) {
@@ -243,7 +252,7 @@ async function exportCsv(list) {
       m.inputs, m.valid, m.plays, m.stops, m.autoStops, m.nexts, Object.entries(m.songs).map(([n, c]) => `${n}(${c})`).join(' / '),
       ...OBS.map(([k]) => (ses.obs && ses.obs[k]) || 0), ses.memo || '']);
   }
-  await saveFile(csvBlob(rows), `おんがくスイッチ_記録一覧_${stamp()}.csv`);
+  return rows;
 }
 
 async function exportLogCsv(list) {

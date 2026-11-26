@@ -32,9 +32,23 @@ export function promptDlg(title, value = '', placeholder = '') {
   }).then((v) => (v ? v : null));
 }
 
-// ファイルとして保存（iPadでは「ファイル」アプリの「ダウンロード」に入る。共有シートが使えればそちらも可）
+// ファイルとして保存
+// ・共有シートが使えるとき（iPad / iPhone）：共有シートを出す →「"ファイル"に保存」やロイロノートへ送れる
+// ・使えないとき：ダウンロード（iPadでは「ファイル」アプリの「ダウンロード」フォルダ）
 export async function saveFile(blob, filename) {
-  const file = typeof File === 'function' ? new File([blob], filename, { type: blob.type }) : null;
+  let file = null;
+  try { file = new File([blob], filename, { type: blob.type || 'application/octet-stream' }); } catch { /* 古い環境 */ }
+  if (file && navigator.canShare && navigator.share) {
+    try {
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: filename });
+        return 'shared';
+      }
+    } catch (e) {
+      if (e && e.name === 'AbortError') return 'cancel'; // 先生がとじた
+      // 時間がかかって共有シートが出せなかったときなどは、ダウンロードに切り替える
+    }
+  }
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = filename;
@@ -42,7 +56,23 @@ export async function saveFile(blob, filename) {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 60000);
-  return file;
+  return 'download';
+}
+
+// 文字を画面に表示してコピーできるようにする（ファイルの保存ができない環境むけ）
+export function showTextForCopy(title, text) {
+  return dialog(`<h3>${esc(title)}</h3>
+    <p class="note">ファイルとして保存できないときに使います。「コピー」を押して、Excel・Numbers・ロイロノートのテキストカードなどに貼り付けてください。</p>
+    <textarea readonly style="height:40vh;font-family:ui-monospace,Menlo,monospace;font-size:13px">${esc(text)}</textarea>
+    <div class="foot"><button class="btn" data-close="">とじる</button><button class="btn primary" data-copy>コピー</button></div>`,
+  (box) => {
+    const ta = box.querySelector('textarea');
+    box.querySelector('[data-copy]').addEventListener('click', async (e) => {
+      try { await navigator.clipboard.writeText(text); }
+      catch { ta.focus(); ta.select(); try { document.execCommand('copy'); } catch { /* 手動でコピー */ } }
+      e.target.textContent = 'コピーしました';
+    });
+  });
 }
 
 export function fmtTime(sec) {

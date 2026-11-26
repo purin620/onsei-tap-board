@@ -4,7 +4,7 @@ import { Player } from './player.js';
 import { InputManager } from './input.js';
 import { sampleFiles } from './samples.js';
 
-export const VERSION = '1.2.0';
+export const VERSION = '1.3.0';
 
 // ---- 学習モード・機能の名前 -------------------------------------------
 export const MODES = {
@@ -596,6 +596,8 @@ export function renderStart() {
   const sel = $('#startStudent');
   sel.innerHTML = S.students.map((x) => `<option value="${x.id}" ${x.id === s.studentId ? 'selected' : ''}>${esc(x.name)}</option>`).join('');
   $('#startGo').disabled = !list.length;
+  // Service Worker が使えない＝ロイロノートなどアプリの中のブラウザで開いている可能性が高い
+  $('#startInApp').hidden = 'serviceWorker' in navigator;
   $('#startNoSongs').hidden = !!list.length;
 }
 
