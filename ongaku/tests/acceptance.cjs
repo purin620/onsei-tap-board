@@ -40,7 +40,26 @@ function check(name, ok, info = '') { results.push([ok, name, info]); console.lo
   const wait = (ms) => page.waitForTimeout(ms);
   const press = async (k = 'Space') => { await page.keyboard.down(k); await wait(60); await page.keyboard.up(k); await wait(650); };
 
-  await page.goto(BASE);
+  // はじめて開いたとき、お試し用の曲が入っている
+  {
+    const p0 = await ctx.newPage();
+    await p0.goto(BASE);
+    await p0.waitForFunction(() => window.__ongaku && window.__ongaku.S.songs.size === 3, null, { timeout: 15000 });
+    await p0.waitForSelector('#startGo:not([disabled])');
+    await p0.click('#startGo');
+    await p0.waitForTimeout(800);
+    await p0.keyboard.press('Space'); await p0.waitForTimeout(500);
+    const ok = await p0.evaluate(() => window.__ongaku.S.playing && window.__ongaku.player.playing);
+    const names = await p0.evaluate(() => [...window.__ongaku.S.songs.values()].map((x) => x.name).join('・'));
+    check('はじめて開くとお試し用の曲が3曲入っていて、すぐ再生できる', ok, names);
+    await p0.keyboard.press('Space');
+    await p0.close();
+    // 以降のテストのために消す
+    const pc = await ctx.newPage(); await pc.goto(BASE + '?nosamples');
+    await pc.evaluate(() => new Promise((res) => { indexedDB.deleteDatabase('ongaku-switch').onsuccess = res; }));
+    await pc.close();
+  }
+  await page.goto(BASE + '?nosamples');
   await page.waitForSelector('#startGo');
   await shot('01-start-empty');
   check('曲がないときは「学習スタート」が押せない', await page.isDisabled('#startGo'));

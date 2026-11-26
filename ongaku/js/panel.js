@@ -3,7 +3,7 @@ import * as DB from './db.js';
 import {
   S, MODES, FUNCS, OBS, VERSION, player, input, saveSettings, currentPlaylist, listSongs, importFiles,
   updateSong, deleteSong, savePlaylist, resetPlaybackPosition, renderStage, renderStart, endLearning,
-  esc, toast, stopPlayback, prepareAround, DEFAULTS,
+  esc, toast, stopPlayback, prepareAround, DEFAULTS, addSamples,
 } from './app.js';
 import { keyLabel } from './input.js';
 import { dialog, confirmDlg, promptDlg, fmtTime, fmtBytes } from './ui.js';
@@ -168,6 +168,7 @@ async function tabMusic(body) {
     <div class="field" style="margin:0">
       <button class="btn primary" data-act="add">＋ 音楽ファイルを選ぶ（複数可）</button>
       <button class="btn" data-act="rec" ${canRecord() ? '' : 'disabled'}>● 録音して追加</button>
+      <button class="btn" data-act="samples">♪ お試し用の曲を入れる</button>
     </div>
     <input type="file" id="fileIn" multiple accept="audio/*,.mp3,.m4a,.aac,.wav,.mp4,.caf,.aif,.aiff" hidden>
     <p class="note" id="addMsg">MP3・M4A（DRMのないAAC）・WAV などに対応しています。iPadでは「ファイル」アプリの中の音楽ファイルを選べます。追加した曲は「${esc(pl ? pl.name : '')}」に入ります。</p>
@@ -222,6 +223,11 @@ async function tabMusic(body) {
     const id = li && li.dataset.id;
     if (act === 'add') { fileIn.value = ''; fileIn.click(); return; }
     if (act === 'rec') { await recordDialog(pl); renderTab(); return; }
+    if (act === 'samples') {
+      const r = await addSamples();
+      toast(`お試し用の曲を${r.added.length}曲入れました（きらきらぼし・メリーさんのひつじ・かえるのうた）`);
+      renderTab(); return;
+    }
     if (act === 'plNew') {
       const name = await promptDlg('新しいプレイリストの名前', `プレイリスト${S.playlists.length + 1}`);
       if (!name) return;

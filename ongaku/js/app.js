@@ -2,8 +2,9 @@
 import * as DB from './db.js';
 import { Player } from './player.js';
 import { InputManager } from './input.js';
+import { sampleFiles } from './samples.js';
 
-export const VERSION = '1.1.0';
+export const VERSION = '1.2.0';
 
 // ---- 学習モード・機能の名前 -------------------------------------------
 export const MODES = {
@@ -203,6 +204,12 @@ export async function importFiles(files, playlistId, onProgress) {
   prepareAround();
   renderStage();
   return { added, failed };
+}
+
+export async function addSamples() {
+  const res = await importFiles(sampleFiles(), S.settings.playlistId);
+  await DB.kvSet('samplesAdded', true);
+  return res;
 }
 
 export function probeDuration(blob) {
@@ -645,6 +652,10 @@ export async function boot({ openPanel }) {
   await DB.kvSet('settings', S.settings).catch(() => {});
   await closeUnfinishedSessions();
   DB.requestPersist();
+  // はじめて開いたときは、お試し用の曲を入れておく（いらなければ削除できる）
+  if (!S.songs.size && !(await DB.kvGet('samplesAdded', false)) && !/nosamples/.test(location.search)) {
+    await addSamples().catch(() => {});
+  }
 
   applyTheme();
   player.setMasterVolume(S.settings.masterVolume);
