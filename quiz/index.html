@@ -411,6 +411,7 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
     <button type="button" id="clearMine">追加した問題を ぜんぶ けす</button>
 
     <button type="button" id="restart">さいしょから はじめる</button>
+    <p class="note">アプリをとじて開き直しても、とちゅうの問題から つづきます。はじめからにしたい時は このボタンをおしてください。</p>
     <p class="note">右下の⚙を長押し（1.5秒）すると開きます。</p>
     <button type="button" class="close" id="closePanel">とじる</button>
   </div>
@@ -687,22 +688,42 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
       cb();
     }).catch(function () { cb(); });
   }
-  function loadQuiz(focus) {
-    var src = store("quiz.src2") || "both";
-    loadHidden(function () { loadVideos(function () { buildQuiz(src, focus); }); });
+  // ---- すすみぐあいの保存（アプリをとじて開き直しても、同じ問題から再開する） ----
+  // 正解したときと、先生が「さいしょから」にしたときだけ次へ進む／リセットされる
+  var ready = false, gen = 0;
+  function loadProg() { try { return JSON.parse(store("quiz.prog") || "null"); } catch (e) { return null; } }
+  function saveProg(i, st) {
+    if (!ready) return;
+    if (i >= quiz.length) { store("quiz.prog", ""); return; }
+    store("quiz.prog", JSON.stringify({ keys: quiz.map(function (q) { return q.key; }), idx: i, stamps: st }));
   }
-  function buildQuiz(src, focus) {
+  function resetQuiz(focus) { store("quiz.prog", ""); loadQuiz(focus); }
+  function loadQuiz(focus) {
+    var src = store("quiz.src2") || "both", my = ++gen;
+    loadHidden(function () { loadVideos(function () { if (my === gen) buildQuiz(src, focus, my); }); });
+  }
+  function buildQuiz(src, focus, my) {
     var base = (window.MONDAI || []).map(function (m, i) { return { key: baseKey(i), img: m.shashin, kotae: m.kotae, namae: m.namae }; })
       .filter(function (q) { return hidden.indexOf(q.key) < 0; });
     getMine(function (mine) {
+      if (my !== gen) return;
       mine = mine.map(function (m) { return { key: m.id != null ? "m" + m.id : "", img: m.img, kotae: m.kotae, namae: m.namae }; });
       quiz = src === "app" ? base : src === "mine" ? mine : base.concat(mine);
       if (!quiz.length) quiz = base.length ? base : mine;
       quiz.forEach(function (q) { q.honor = HONOR_TEXT[honorOf(q.key)]; });
-      if ((store("quiz.order") || "random") === "random") {
+      idx = 0; doneCount = 0; stamps = 0;
+      var prog = focus ? null : loadProg();
+      if (prog && prog.keys && prog.keys.length) {
+        // 前回の じゅんばんに ならべなおす（けした問題はとばし、新しく追加した問題は うしろへ）
+        var byKey = {}, ordered = [], doneN = 0;
+        quiz.forEach(function (q) { byKey[q.key] = q; });
+        prog.keys.forEach(function (k, i) { if (byKey[k]) { ordered.push(byKey[k]); delete byKey[k]; if (i < prog.idx) doneN++; } });
+        quiz.forEach(function (q) { if (byKey[q.key]) ordered.push(q); });
+        if (doneN < ordered.length) { quiz = ordered; idx = doneN; stamps = prog.stamps || 0; } else prog = null;
+      } else prog = null;
+      if (!prog && (store("quiz.order") || "random") === "random") {
         for (var i = quiz.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = quiz[i]; quiz[i] = quiz[j]; quiz[j] = t; }
       }
-      idx = 0; doneCount = 0; stamps = 0;
       if (focus) {
         var f = quiz.map(function (q) { return q.kotae.join("、"); }).lastIndexOf(focus);
         if (f >= 0) idx = f;
@@ -743,6 +764,7 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
     }
     drawStamps($("mystamps"));
     ["ok", "ng", "fin", "stampScr", "videoScr"].forEach(function (id) { $(id).hidden = true; });
+    saveProg(idx, stamps);
   }
 
   function isRight() {
@@ -765,6 +787,9 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
 
   function showOK() {
     var q = quiz[idx];
+    var ni = idx + 1, sz = setSize();
+    saveProg(ni, stamps + (ni % sz === 0 || ni >= quiz.length ? 1 : 0)); // 正解したら、つぎの問題から再開
+
     var p = PRAISE[Math.floor(Math.random() * PRAISE.length)];
     var name = text.join("") + (q.honor || "");
     $("okName").textContent = name + "　" + p;
@@ -819,7 +844,7 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
     $("fin").hidden = false;
     speak("おしまい。 がんばったね！");
   });
-  $("again").addEventListener("click", function () { loadQuiz(); });
+  $("again").addEventListener("click", function () { resetQuiz(); });
 
   // ---- どうが ----
   var videos = {};
@@ -991,13 +1016,13 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
     el.value = store(key) || def;
     el.addEventListener("change", function () { store(key, el.value); if (onChange) onChange(); });
   }
-  bindSel("src", "quiz.src2", "both", function () { loadQuiz(); });
-  bindSel("order", "quiz.order", "random", function () { loadQuiz(); });
-  bindSel("setSize", "quiz.setSize", "5", function () { loadQuiz(); });
+  bindSel("src", "quiz.src2", "both", function () { resetQuiz(); });
+  bindSel("order", "quiz.order", "random", function () { resetQuiz(); });
+  bindSel("setSize", "quiz.setSize", "5", function () { resetQuiz(); });
   bindSel("hintAfter", "quiz.hintAfter", "0");
   bindSel("rate", "quiz.rate", "0.8");
   $("voice").addEventListener("change", function () { store("quiz.voice", $("voice").value); });
-  $("restart").addEventListener("click", function () { panel.hidden = true; loadQuiz(); });
+  $("restart").addEventListener("click", function () { panel.hidden = true; resetQuiz(); showWarn("さいしょから はじめました。"); });
   $("closePanel").addEventListener("click", function () { panel.hidden = true; });
 
   $("importFile").addEventListener("change", function () {
@@ -1161,7 +1186,7 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
         $("addFile").value = ""; $("addKotae").value = ""; $("addHonor").value = "";
         function done() {
           showWarn("登録しました。いま 出ているのが 追加した問題です。");
-          drawMine(); panel.hidden = true; loadQuiz(kotae.join("、"));
+          drawMine(); panel.hidden = true; resetQuiz(kotae.join("、"));
         }
         if (addHonor && newId != null) { setHonor("m" + newId, addHonor); saveSensei(done); } else done();
       });
@@ -1172,7 +1197,7 @@ button:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
   function showWarn(m) { warn.textContent = m; warn.hidden = false; setTimeout(function () { warn.hidden = true; }, 4000); }
 
   loadQuiz();
-  cloudReady.then(function () { if (cloud) loadQuiz(); });
+  cloudReady.then(function () { ready = true; loadQuiz(); });
 })();
 </script>
 </body>
